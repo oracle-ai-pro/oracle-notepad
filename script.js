@@ -642,20 +642,178 @@ document.addEventListener('DOMContentLoaded', () => {
     if (profileBtn && profileModal) profileBtn.addEventListener('click', () => profileModal.style.display = 'flex');
     if (closeProfileBtn && profileModal) closeProfileBtn.addEventListener('click', () => profileModal.style.display = 'none');
 
-    // КЛАВИАТУРА И КОД
-    const codingKeys = ['{', '}', '[', ']', '(', ')', ';', '"', "'", '=', '<', '>', '/', '$', '_', 'Tab'];
-    if (codingKeyboard) {
-        codingKeys.forEach(key => {
+    // КЛАВИАТУРА И КОД + закрепление символов
+    const ALL_CODING_SYMBOLS = [
+        '{', '}', '[', ']', '(', ')', '<', '>',
+        ';', ':', ',', '.', '?', '!',
+        '"', "'", '`', '\\', '/', '|',
+        '=', '+', '-', '*', '%', '_', '$', '#', '@', '&', '^', '~',
+        'Tab', '=>', '===', '!==', '&&', '||', '??', '...',
+        '/*', '*/', '//', '${', '[]', '{}', '()'
+    ];
+    const PINNED_KEY = 'oracle_notepad_pinned_symbols';
+    const MAX_PINNED = 10;
+
+    function getPinnedSymbols() {
+        try {
+            const arr = JSON.parse(localStorage.getItem(PINNED_KEY) || '[]');
+            return Array.isArray(arr) ? arr.filter(s => typeof s === 'string').slice(0, MAX_PINNED) : [];
+        } catch (e) { return []; }
+    }
+    function savePinnedSymbols(arr) {
+        localStorage.setItem(PINNED_KEY, JSON.stringify(arr.slice(0, MAX_PINNED)));
+    }
+    function pinSymbol(sym) {
+        let arr = getPinnedSymbols().filter(s => s !== sym);
+        arr.push(sym);
+        if (arr.length > MAX_PINNED) arr = arr.slice(arr.length - MAX_PINNED);
+        savePinnedSymbols(arr);
+        renderCodingKeyboard();
+        renderSymbolsModal();
+        showToast('Закреплено: ' + sym + ' (' + arr.length + '/' + MAX_PINNED + ')');
+    }
+    function unpinSymbol(sym) {
+        const arr = getPinnedSymbols().filter(s => s !== sym);
+        savePinnedSymbols(arr);
+        renderCodingKeyboard();
+        renderSymbolsModal();
+        showToast('Откреплено: ' + sym);
+    }
+    function insertCodingSymbol(key) {
+        if (!codeEditor) return;
+        insertAtCursor(codeEditor, key === 'Tab' ? '    ' : key);
+    }
+
+    let _symCtxTarget = null;
+    function hideSymbolsCtx() {
+        const m = document.getElementById('symbols-ctx-menu');
+        if (m) m.style.display = 'none';
+        _symCtxTarget = null;
+    }
+    function showSymbolsCtx(e, sym, isPinned) {
+        e.preventDefault();
+        e.stopPropagation();
+        _symCtxTarget = sym;
+        const m = document.getElementById('symbols-ctx-menu');
+        if (!m) return;
+        const pinBtn = document.getElementById('symbols-ctx-pin');
+        const unpinBtn = document.getElementById('symbols-ctx-unpin');
+        if (pinBtn) pinBtn.style.display = isPinned ? 'none' : 'block';
+        if (unpinBtn) unpinBtn.style.display = isPinned ? 'block' : 'none';
+        m.style.display = 'flex';
+        const x = Math.min(e.clientX || (e.touches && e.touches[0]?.clientX) || 0, window.innerWidth - 160);
+        const y = Math.min(e.clientY || (e.touches && e.touches[0]?.clientY) || 0, window.innerHeight - 100);
+        m.style.left = x + 'px';
+        m.style.top = y + 'px';
+    }
+
+    function bindSymLongPress(el, sym, isPinned) {
+        let timer = null;
+        el.addEventListener('contextmenu', (e) => showSymbolsCtx(e, sym, isPinned));
+        el.addEventListener('touchstart', (e) => {
+            timer = setTimeout(() => {
+                const t = e.touches[0];
+                showSymbolsCtx({ preventDefault(){}, stopPropagation(){}, clientX: t.clientX, clientY: t.clientY }, sym, isPinned);
+            }, 500);
+        }, { passive: true });
+        el.addEventListener('touchend', () => clearTimeout(timer));
+        el.addEventListener('touchmove', () => clearTimeout(timer));
+    }
+
+    function renderCodingKeyboard() {
+        if (!codingKeyboard) return;
+        codingKeyboard.innerHTML = '';
+        const pinned = getPinnedSymbols();
+        const base = pinned.length ? pinned : ['{', '}', '[', ']', '(', ')', ';', '"', '=', '<', '>', '/', '$', '_', 'Tab'];
+        base.forEach(key => {
             const btn = document.createElement('button');
+            btn.type = 'button';
             btn.className = 'key-btn';
             btn.textContent = key;
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                if (codeEditor) insertAtCursor(codeEditor, key === 'Tab' ? '    ' : key);
+                insertCodingSymbol(key);
             });
+            bindSymLongPress(btn, key, pinned.includes(key));
             codingKeyboard.appendChild(btn);
         });
+        const more = document.createElement('button');
+        more.type = 'button';
+        more.className = 'key-btn more-symbols-btn';
+        more.textContent = '⋯';
+        more.title = 'Все символы';
+        more.addEventListener('click', (e) => {
+            e.preventDefault();
+            openSymbolsModal();
+        });
+        codingKeyboard.appendChild(more);
     }
+
+    function renderSymbolsModal() {
+        const allGrid = document.getElementById('symbols-all-grid');
+        const pinGrid = document.getElementById('symbols-pinned-grid');
+        const countEl = document.getElementById('symbols-pinned-count');
+        if (!allGrid || !pinGrid) return;
+        const pinned = getPinnedSymbols();
+        if (countEl) countEl.textContent = String(pinned.length);
+        allGrid.innerHTML = '';
+        ALL_CODING_SYMBOLS.forEach(sym => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'sym-btn' + (pinned.includes(sym) ? ' pinned-mark' : '');
+            b.textContent = sym;
+            b.addEventListener('click', () => {
+                insertCodingSymbol(sym);
+                hideSymbolsCtx();
+            });
+            bindSymLongPress(b, sym, pinned.includes(sym));
+            allGrid.appendChild(b);
+        });
+        pinGrid.innerHTML = '';
+        if (!pinned.length) {
+            pinGrid.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--on-surface-variant);padding:8px;">Нет закреплённых — ПКМ по символу → Закрепить</div>';
+        } else {
+            pinned.forEach(sym => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'sym-btn pinned-mark';
+                b.textContent = sym;
+                b.addEventListener('click', () => {
+                    insertCodingSymbol(sym);
+                    hideSymbolsCtx();
+                });
+                bindSymLongPress(b, sym, true);
+                pinGrid.appendChild(b);
+            });
+        }
+    }
+
+    function openSymbolsModal() {
+        renderSymbolsModal();
+        const m = document.getElementById('symbols-picker-modal');
+        if (m) m.style.display = 'flex';
+    }
+    function closeSymbolsModal() {
+        hideSymbolsCtx();
+        const m = document.getElementById('symbols-picker-modal');
+        if (m) m.style.display = 'none';
+    }
+
+    document.getElementById('btn-close-symbols-modal')?.addEventListener('click', closeSymbolsModal);
+    document.getElementById('symbols-picker-modal')?.addEventListener('click', (e) => {
+        if (e.target && e.target.id === 'symbols-picker-modal') closeSymbolsModal();
+    });
+    document.getElementById('symbols-ctx-pin')?.addEventListener('click', () => {
+        if (_symCtxTarget) pinSymbol(_symCtxTarget);
+        hideSymbolsCtx();
+    });
+    document.getElementById('symbols-ctx-unpin')?.addEventListener('click', () => {
+        if (_symCtxTarget) unpinSymbol(_symCtxTarget);
+        hideSymbolsCtx();
+    });
+    document.addEventListener('click', () => hideSymbolsCtx());
+
+    renderCodingKeyboard();
 
     if (toggleKeyboard && codingKeyboard) {
         toggleKeyboard.addEventListener('click', () => {
@@ -831,4 +989,253 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     loadState();
+
+    // ===== CORE NODE BRIDGE =====
+
+    function showCoreChatsErrorCard(reason) {
+        const list = document.getElementById('chatHistoryList');
+        if (!list) return;
+        list.innerHTML = `
+            <div class="core-chats-error-card" role="alert">
+                <span class="material-symbols-rounded core-chats-error-icon">error</span>
+                <div class="core-chats-error-title">Чаты не удалось отобразить</div>
+                <div class="core-chats-error-text">Попробуйте перезагрузить страницу!</div>
+                ${reason ? `<div class="core-chats-error-detail">${escapeHtml(String(reason))}</div>` : ''}
+                <button type="button" class="action-btn outline core-chats-reload-btn" onclick="location.reload()">
+                    <span class="material-symbols-rounded">refresh</span> Перезагрузить
+                </button>
+            </div>`;
+        const el = document.getElementById('bridge-status');
+        if (el) {
+            el.className = 'bridge-status err';
+            el.textContent = 'Ошибка загрузки чатов';
+        }
+    }
+
+    /** Консоль: __testCoreChatsError() — показать карточку ошибки загрузки чатов */
+    window.__testCoreChatsError = function(msg) {
+        showCoreChatsErrorCard(msg || 'Тест: симуляция сбоя чтения oracle_chat_sessions');
+        console.info('[Notepad] Карточка ошибки чатов. Сброс: location.reload()');
+        return true;
+    };
+
+    const CORE_CHATS_KEY = 'oracle_chat_sessions';
+    const CORE_CURRENT_KEY = 'oracle_current_session';
+    const NP_SETTINGS_KEY = 'oracle_notepad_settings';
+
+    function loadNpSettings() {
+        try {
+            return JSON.parse(localStorage.getItem(NP_SETTINGS_KEY) || '{}') || {};
+        } catch (e) { return {}; }
+    }
+    function saveNpSettings(partial) {
+        const s = Object.assign(loadNpSettings(), partial);
+        localStorage.setItem(NP_SETTINGS_KEY, JSON.stringify(s));
+        applyNpSettings(s);
+        return s;
+    }
+    function applyNpSettings(s) {
+        s = s || loadNpSettings();
+        if (autoSaveToggle) autoSaveToggle.checked = s.autoSave !== false;
+        const as = document.getElementById('settings-auto-save');
+        if (as) as.checked = s.autoSave !== false;
+        const sy = document.getElementById('settings-auto-sync');
+        if (sy) sy.checked = s.autoSync !== false;
+        const cc = document.getElementById('settings-compact-chat');
+        if (cc) cc.checked = !!s.compactChat;
+        document.body.classList.toggle('compact-chat', !!s.compactChat);
+        const link = document.getElementById('core-node-open-link');
+        if (link) link.setAttribute('href', 'https://oracle-ai-pro.github.io/oracle');
+    }
+
+    function readCoreNodeChats() {
+        try {
+            const raw = localStorage.getItem(CORE_CHATS_KEY);
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            if (!data || typeof data !== 'object' || Array.isArray(data)) {
+                throw new Error('Неверный формат oracle_chat_sessions');
+            }
+            return data;
+        } catch (e) {
+            console.error('[Notepad] Core chats read failed', e);
+            window.__lastCoreChatsError = e;
+            return { __error: true, message: e && e.message ? e.message : 'Ошибка чтения' };
+        }
+    }
+
+    function updateBridgeStatus() {
+        const el = document.getElementById('bridge-status');
+        const keyEl = document.getElementById('core-bridge-key');
+        if (keyEl) keyEl.textContent = CORE_CHATS_KEY;
+        if (!el) return;
+        const chats = readCoreNodeChats();
+        if (chats && chats.__error) {
+            el.className = 'bridge-status err';
+            el.textContent = 'Ошибка загрузки чатов';
+            return;
+        }
+        if (!chats) {
+            el.className = 'bridge-status warn';
+            el.textContent = 'Чаты Core Node не найдены в этом браузере';
+            return;
+        }
+        const n = Object.keys(chats).filter(k => k !== '__error' && k !== 'message').length;
+        el.className = 'bridge-status ok';
+        el.textContent = 'Связь OK · чатов: ' + n;
+    }
+
+    function stripHtmlToText(html) {
+        const d = document.createElement('div');
+        d.innerHTML = html || '';
+        return d.textContent || d.innerText || '';
+    }
+
+    function renderCoreChatHistory(activeId) {
+        const list = document.getElementById('chatHistoryList');
+        if (!list) return;
+        const chats = readCoreNodeChats();
+        list.innerHTML = '';
+        if (chats && chats.__error) {
+            showCoreChatsErrorCard(chats.message || 'Не удалось прочитать чаты');
+            return;
+        }
+        if (!chats || !Object.keys(chats).length) {
+            list.innerHTML = '<div class="chat-item muted"><span class="material-symbols-rounded">info</span><span>Нет чатов — откройте Core Node и создайте диалог</span></div>';
+            updateBridgeStatus();
+            return;
+        }
+        const cur = activeId || localStorage.getItem(CORE_CURRENT_KEY);
+        Object.keys(chats).forEach(id => {
+            if (id === '__error' || id === 'message') return;
+            const item = document.createElement('div');
+            item.className = 'chat-item' + (id === cur ? ' active' : '');
+            item.dataset.sessionId = id;
+            const title = (chats[id] && chats[id].title) || 'Без названия';
+            item.innerHTML = `<span class="material-symbols-rounded">chat_bubble</span><span class="chat-item-title">${escapeHtml(title)}</span>`;
+            item.addEventListener('click', () => openCoreChatInNotepad(id));
+            list.appendChild(item);
+        });
+        updateBridgeStatus();
+    }
+
+    function openCoreChatInNotepad(sessionId) {
+        const chats = readCoreNodeChats();
+        if (!chats || chats.__error || !chats[sessionId]) {
+            if (chats && chats.__error) showCoreChatsErrorCard(chats.message);
+            else showToast('Чат не найден');
+            return;
+        }
+        const session = chats[sessionId];
+        // switch to oracle panel on mobile
+        document.querySelectorAll('.mobile-nav-item').forEach(i => {
+            i.classList.toggle('active', i.getAttribute('data-target') === 'panel-oracle');
+        });
+        panels.forEach(p => {
+            if (!p) return;
+            p.classList.toggle('mobile-active', p.id === 'panel-oracle');
+        });
+        if (viewNotes) viewNotes.classList.remove('active');
+        if (viewAi) viewAi.classList.add('active');
+        if (notesIcon) notesIcon.textContent = 'sticky_note_2';
+        activeRightView = 'ai';
+
+        if (welcomeBlock) welcomeBlock.classList.add('hidden');
+        if (chatFlow) {
+            chatFlow.innerHTML = '';
+            // session.html is Core Node markup — extract readable lines
+            const tmp = document.createElement('div');
+            tmp.innerHTML = session.html || '';
+            const msgs = tmp.querySelectorAll('.msg, .user-msg, .ai-msg, .chat-bubble');
+            if (msgs.length) {
+                msgs.forEach(m => {
+                    const isUser = m.classList.contains('user-msg') || m.classList.contains('user-bubble');
+                    const text = (m.querySelector('.bubble-text')?.textContent) || m.textContent || '';
+                    if (text.trim()) appendBubble(escapeHtml(text.trim()), isUser ? 'user' : 'ai');
+                });
+            } else if (session.html) {
+                appendBubble(escapeHtml(stripHtmlToText(session.html).slice(0, 4000)), 'ai');
+            } else {
+                appendBubble('Пустой чат из Core Node', 'ai');
+            }
+        }
+        // highlight
+        document.querySelectorAll('#chatHistoryList .chat-item').forEach(el => {
+            el.classList.toggle('active', el.dataset.sessionId === sessionId);
+        });
+        // close drawer
+        if (chatDrawerOverlay && chatDrawer) {
+            chatDrawerOverlay.classList.remove('active');
+            chatDrawer.classList.remove('active');
+            setTimeout(() => { chatDrawerOverlay.style.display = 'none'; }, 300);
+        }
+        showToast('Чат: ' + (session.title || 'Core Node'));
+    }
+
+    function syncFromCoreNode(showMsg = true) {
+        updateBridgeStatus();
+        renderCoreChatHistory();
+        if (showMsg) {
+            const chats = readCoreNodeChats();
+            const n = chats ? Object.keys(chats).length : 0;
+            showToast(n ? ('Синхронизировано: ' + n + ' чат(ов)') : 'Чаты Core Node не найдены');
+        }
+    }
+
+    const btnSync = document.getElementById('btn-sync-core-node');
+    if (btnSync) btnSync.addEventListener('click', () => syncFromCoreNode(true));
+
+    // Settings modal
+    const settingsModal = document.getElementById('settingsModal');
+    const btnOpenSettings = document.getElementById('btn-open-settings-panel');
+    const btnCloseSettings = document.getElementById('btn-close-settings-modal');
+    const btnSettingsSave = document.getElementById('btn-settings-save');
+    if (btnOpenSettings && settingsModal) {
+        btnOpenSettings.addEventListener('click', () => {
+            applyNpSettings();
+            settingsModal.style.display = 'flex';
+        });
+    }
+    if (btnCloseSettings && settingsModal) {
+        btnCloseSettings.addEventListener('click', () => settingsModal.style.display = 'none');
+    }
+    if (btnSettingsSave) {
+        btnSettingsSave.addEventListener('click', () => {
+            const autoSave = document.getElementById('settings-auto-save')?.checked !== false;
+            const autoSync = document.getElementById('settings-auto-sync')?.checked !== false;
+            const compactChat = !!document.getElementById('settings-compact-chat')?.checked;
+            saveNpSettings({ autoSave, autoSync, compactChat });
+            if (autoSaveToggle) autoSaveToggle.checked = autoSave;
+            settingsModal.style.display = 'none';
+            showToast('Настройки сохранены');
+        });
+    }
+    // mirror auto-save toggle from export menu
+    if (autoSaveToggle) {
+        autoSaveToggle.addEventListener('change', () => {
+            saveNpSettings({ autoSave: autoSaveToggle.checked });
+        });
+    }
+
+    applyNpSettings();
+    updateBridgeStatus();
+    if (loadNpSettings().autoSync !== false) {
+        syncFromCoreNode(false);
+    }
+
+    // Live sync when Core Node updates localStorage (same origin)
+    window.addEventListener('storage', (e) => {
+        if (e.key === CORE_CHATS_KEY || e.key === CORE_CURRENT_KEY) {
+            updateBridgeStatus();
+            renderCoreChatHistory();
+        }
+    });
+    // Also re-sync when drawer opens
+    if (btnChatMenu) {
+        btnChatMenu.addEventListener('click', () => {
+            setTimeout(() => syncFromCoreNode(false), 50);
+        });
+    }
+
+
 });
