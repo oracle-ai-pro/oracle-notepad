@@ -21,6 +21,9 @@
         </div>
         
         <div class="header-actions">
+            <button class="icon-btn" id="btn-open-settings-panel" title="Настройки">
+                <span class="material-symbols-rounded">settings</span>
+            </button>
             <button class="icon-btn" id="btn-settings" title="Сохранить как / Автосохранение">
                 <span class="material-symbols-rounded">save_as</span>
             </button>
@@ -204,7 +207,7 @@
         </div>
         <div class="mobile-nav-item" data-target="panel-oracle">
             <span class="material-symbols-rounded">psychology</span>
-            <span>ИИ / Заметки</span>
+            <span>Оракул</span>
         </div>
     </nav>
 </div>
@@ -225,19 +228,27 @@
             <button class="icon-btn" id="btn-close-drawer"><span class="material-symbols-rounded">close</span></button>
         </div>
         <div class="drawer-body">
-            <a href="https://oracle-ai-pro.github.io/oracle" target="_blank" class="core-node-link-btn">
-                <span class="material-symbols-rounded">open_in_new</span> Открыть Core Node (Главный ИИ)
+            <a href="https://oracle-ai-pro.github.io/oracle" class="core-node-link-btn" id="core-node-open-link" target="_blank" rel="noopener noreferrer">
+                <span class="material-symbols-rounded">hub</span> Открыть Core Node PRO
             </a>
-            <div class="drawer-section-title">История диалогов Core Node</div>
+            <div class="bridge-card">
+                <div class="bridge-card-title">
+                    <span class="material-symbols-rounded">key</span> Ключ связи
+                </div>
+                <p class="bridge-hint">Один ключ на браузер: Notepad читает чаты Core Node из localStorage.</p>
+                <code id="core-bridge-key" class="bridge-key">oracle_chat_sessions</code>
+                <div class="bridge-status" id="bridge-status">Проверка…</div>
+            </div>
+            <div class="drawer-section-title">Чаты Core Node</div>
             <div class="chat-history-list" id="chatHistoryList">
-                <div class="chat-item active">
-                    <span class="material-symbols-rounded">chat_bubble</span>
-                    <span>Главный диалог Оракула</span>
+                <div class="chat-item muted">
+                    <span class="material-symbols-rounded">sync</span>
+                    <span>Нажмите «Синхронизировать»</span>
                 </div>
             </div>
         </div>
         <div class="drawer-footer">
-            <button class="action-btn outline" id="btn-sync-core-node" style="width: 100%;">
+            <button class="action-btn" id="btn-sync-core-node" style="width: 100%;">
                 <span class="material-symbols-rounded">sync</span> Синхронизировать с Core Node
             </button>
         </div>
@@ -340,6 +351,74 @@
         <h3 id="alertModalTitle">Уведомление</h3>
         <p id="alertModalMessage" style="margin: 16px 0; color: var(--on-surface-variant); font-size: 14px; line-height: 1.5;"></p>
         <button class="action-btn" id="btn-close-alert" style="width: 100%;">Понятно</button>
+    </div>
+</div>
+
+
+<div class="migration-overlay" id="settingsModal" style="display: none;">
+    <div class="migration-modal" style="max-width: 440px;">
+        <div class="modal-header-row">
+            <h3>⚙ Настройки Notepad</h3>
+            <button class="icon-btn" id="btn-close-settings-modal" title="Закрыть">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+        <div class="settings-stack">
+            <div class="settings-row">
+                <div>
+                    <div class="settings-label">Автосохранение</div>
+                    <div class="settings-desc">Код, заметки, миры — в localStorage</div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="settings-auto-save" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-row">
+                <div>
+                    <div class="settings-label">Синхронизация чатов Core Node</div>
+                    <div class="settings-desc">Подтягивать oracle_chat_sessions при открытии</div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="settings-auto-sync" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-row">
+                <div>
+                    <div class="settings-label">Компактный чат</div>
+                    <div class="settings-desc">Меньше отступы у пузырей</div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="settings-compact-chat">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <button class="action-btn outline" id="btn-settings-save" style="width:100%;margin-top:4px;">
+                <span class="material-symbols-rounded">check</span> Сохранить настройки
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<div class="migration-overlay" id="symbols-picker-modal" style="display:none;">
+    <div class="migration-modal symbols-picker-modal">
+        <div class="modal-header-row">
+            <h3>Символы</h3>
+            <button type="button" class="icon-btn" id="btn-close-symbols-modal" title="Закрыть">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+        <p class="symbols-hint">Нажмите — вставить. ПКМ / долгое нажатие — закрепить (до 10). Ниже --- закреплённые.</p>
+        <div id="symbols-all-grid" class="symbols-grid"></div>
+        <div class="symbols-divider">---</div>
+        <div class="symbols-pinned-label">Закреплённые <span id="symbols-pinned-count">0</span>/10</div>
+        <div id="symbols-pinned-grid" class="symbols-grid pinned"></div>
+        <div id="symbols-ctx-menu" class="symbols-ctx-menu" style="display:none;">
+            <button type="button" id="symbols-ctx-pin">Закрепить</button>
+            <button type="button" id="symbols-ctx-unpin">Открепить</button>
+        </div>
     </div>
 </div>
 
