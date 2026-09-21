@@ -6,7 +6,1022 @@
     <title>Oracle Notepad | Prestige HQ</title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
     <meta name="theme-color" content="#0a0b10">
-    <link rel="stylesheet" href="style.css">
+    <style>
+:root {
+    --bg: #050505;
+    --surface: #14151f;
+    --surface-variant: #1f202e;
+    --on-surface: #e3e2e6;
+    --on-surface-variant: #c7c6ca;
+    --primary: #adc6ff;
+    --primary-container: #254487;
+    --secondary: #e8bbf1;
+    --border: #434753;
+    --glass-bg: rgba(20, 21, 31, 0.85);
+    --accent-red: #ff5252;
+    --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --left-panel-width: 280px;
+    --right-panel-width: 360px;
+    --header-height: 56px;
+    --mobile-nav-height: 56px;
+}
+
+* { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    -webkit-tap-highlight-color: transparent; 
+}
+
+body { 
+    font-family: var(--font-main); 
+    background-color: var(--bg); 
+    color: var(--on-surface); 
+    overflow: hidden; 
+    height: 100vh; 
+    height: 100dvh; 
+}
+
+button, input, textarea, select { 
+    font-family: inherit; 
+    background: none; 
+    border: none; 
+    color: inherit; 
+}
+
+.icon-btn { 
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 8px; 
+    padding: 8px 12px; 
+    border-radius: 20px; 
+    cursor: pointer; 
+    transition: background 0.2s, transform 0.1s; 
+}
+.icon-btn:active { transform: scale(0.95); }
+.icon-btn:hover { background: var(--surface-variant); }
+.material-symbols-rounded { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+/* HEADER */
+.top-bar { 
+    height: var(--header-height); 
+    background: var(--surface); 
+    border-bottom: 1px solid var(--border); 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    padding: 0 16px; 
+    position: relative; 
+    z-index: 110; 
+}
+.project-selector-wrapper { display: flex; align-items: center; }
+.project-modal-trigger-btn { 
+    background: rgba(255, 255, 255, 0.05); 
+    border: 1px solid var(--border); 
+    border-radius: 12px; 
+    font-weight: 600; 
+    font-size: 14px; 
+    color: var(--primary); 
+}
+
+.header-actions { position: relative; display: flex; align-items: center; gap: 4px; }
+.dropdown-menu { 
+    position: absolute; 
+    top: 100%; 
+    right: 0; 
+    margin-top: 8px; 
+    background: var(--surface-variant); 
+    border: 1px solid var(--border); 
+    border-radius: 16px; 
+    width: 260px; 
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5); 
+    display: none; 
+    flex-direction: column; 
+    padding: 8px; 
+    z-index: 120; 
+}
+.dropdown-menu.active { display: flex; animation: fadeIn 0.2s ease; }
+.dropdown-header { padding: 8px 12px; font-size: 12px; color: var(--on-surface-variant); text-transform: uppercase; font-weight: bold; }
+.dropdown-item { 
+    padding: 10px 12px; 
+    border-radius: 8px; 
+    text-align: left; 
+    cursor: pointer; 
+    font-size: 14px; 
+    transition: background 0.2s; 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    width: 100%; 
+}
+.dropdown-item:hover { background: rgba(255,255,255,0.05); color: var(--primary); }
+.dropdown-item.danger:hover { color: var(--accent-red); }
+
+/* GRID & LAYOUT */
+.workspace-container { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.grid-layout { display: block; position: relative; flex-grow: 1; height: calc(100vh - var(--header-height)); height: calc(100dvh - var(--header-height)); min-height: 0; }
+
+.mobile-nav-bar { display: none; }
+
+/* PANELS GENERICS */
+.panel-left, .panel-center, .panel-right { height: 100%; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.panel-header { 
+    height: 48px; 
+    padding: 0 16px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    border-bottom: 1px solid var(--border); 
+    font-weight: 600; 
+    font-size: 14px; 
+    color: var(--on-surface-variant); 
+    background: rgba(255,255,255,0.02); 
+    flex-shrink: 0;
+}
+.panel-content { flex-grow: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.panel-footer { padding: 12px 16px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.1); flex-shrink: 0; }
+
+/* LEFT PANEL CONTENT & EXPLORER */
+.project-icon-upload-zone { position: relative; width: 100%; }
+.icon-preview-wrapper { position: relative; width: 100%; height: 140px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+.icon-preview-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+.icon-preview-wrapper .dots-btn { position: absolute; top: 6px; right: 6px; background: rgba(0, 0, 0, 0.6); border-radius: 50%; width: 28px; height: 28px; padding: 0; color: white; }
+
+.input-group { display: flex; flex-direction: column; gap: 6px; }
+.input-group label { font-size: 12px; color: var(--on-surface-variant); font-weight: 500; }
+.input-group input, .input-group select { 
+    background: var(--surface-variant); 
+    border: 1px solid var(--border); 
+    border-radius: 12px; 
+    padding: 10px 12px; 
+    font-size: 14px; 
+    color: var(--on-surface); 
+    transition: border-color 0.2s; 
+    width: 100%; 
+}
+.input-group input:focus, .input-group select:focus { border-color: var(--primary); outline: none; }
+
+.action-btn { 
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 8px; 
+    background: var(--primary-container); 
+    color: white; 
+    padding: 10px 14px; 
+    border-radius: 12px; 
+    font-weight: 600; 
+    font-size: 13px; 
+    cursor: pointer; 
+    transition: opacity 0.2s, transform 0.1s; 
+    border: none; 
+}
+.action-btn.outline { background: none; border: 1px solid var(--border); color: var(--on-surface); }
+.action-btn:hover { opacity: 0.9; }
+.action-btn:active { transform: scale(0.98); }
+.actions-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.explorer-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.world-group { display: flex; flex-direction: column; gap: 4px; }
+.explorer-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; font-size: 13px; background: rgba(255,255,255,0.03); border: 1px solid transparent; }
+.explorer-item:hover { background: var(--surface-variant); border-color: var(--border); }
+.world-item { font-weight: 600; color: var(--primary); background: rgba(173, 198, 255, 0.05); }
+.room-item { margin-left: 12px; border-left: 2px solid var(--border); border-radius: 0 8px 8px 0; color: var(--on-surface); }
+.item-title { display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-actions { display: flex; gap: 4px; opacity: 0.7; }
+.item-actions span { font-size: 16px; cursor: pointer; padding: 2px; }
+.item-actions span:hover { opacity: 1; color: var(--primary); }
+
+/* CENTER PANEL CODING */
+.coding-workspace { flex-grow: 1; min-height: 0; position: relative; padding: 16px; }
+#code-editor { width: 100%; height: 100%; resize: none; background: transparent; font-family: "Courier New", Courier, monospace; font-size: 15px; line-height: 1.5; color: #a8ffb2; border: none; }
+#code-editor:focus { outline: none; }
+.toggle-btn { display: flex; align-items: center; gap: 12px; background: var(--surface-variant); padding: 14px 16px; border-radius: 14px; font-size: 14px; text-align: left; width: 100%; cursor: pointer; border: 1px solid transparent; }
+.toggle-btn.active { background: rgba(173, 198, 255, 0.15); border-color: var(--primary); color: var(--primary); }
+.custom-keyboard { background: #10111a; border-top: 1px solid var(--border); padding: 8px; display: none; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.custom-keyboard.active { display: grid; animation: slideUp 0.2s cubic-bezier(0, 0, 0.2, 1); }
+.key-btn { background: var(--surface-variant); padding: 12px 0; border-radius: 8px; font-weight: bold; font-size: 15px; text-align: center; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.key-btn:active { background: var(--primary-container); }
+.mobile-coding-tools { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 12px; flex-shrink: 0; }
+
+/* RIGHT PANEL VIEW TOGGLING */
+.right-view-container { display: none; flex-direction: column; flex-grow: 1; height: calc(100% - 48px); min-height: 0; overflow: hidden; }
+.right-view-container.active { display: flex; animation: fadeIn 0.25s ease; }
+
+/* ORACLE CHAT ZONE */
+.oracle-chat-zone { 
+    flex: 1; 
+    min-height: 0; 
+    overflow-y: auto; 
+    position: relative; 
+    padding: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+.oracle-chat-zone::-webkit-scrollbar { width: 6px; }
+.oracle-chat-zone::-webkit-scrollbar-track { background: transparent; }
+.oracle-chat-zone::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+.oracle-chat-zone::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
+
+.welcome-zone { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 24px; }
+.blob-container { filter: url(#gooey); position: relative; width: 120px; height: 120px; margin-bottom: 24px; }
+.blob { position: absolute; top: 20px; left: 20px; width: 80px; height: 80px; border-radius: 50%; mix-blend-mode: screen; animation: float 4s infinite ease-in-out, pulseBlob 2.5s infinite alternate ease-in-out; }
+.cyan-blob { background: #00f2fe; animation-delay: 0s; }
+.purple-blob { background: #4facfe; left: 40px; animation-direction: reverse; animation-duration: 3.5s; }
+.oracle-greeting { font-size: 20px; font-weight: bold; margin-bottom: 12px; background: linear-gradient(45deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.oracle-warning { font-size: 12px; color: var(--accent-red); opacity: 0.8; max-width: 260px; line-height: 1.4; }
+
+.chat-flow-box { display: flex; flex-direction: column; gap: 12px; padding: 4px; }
+.chat-bubble { max-width: 85%; padding: 12px 16px; font-size: 14px; line-height: 1.5; animation: bubbleIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(12px); word-break: break-word; }
+.user-bubble { background: var(--primary-container); color: var(--on-surface); border-radius: 18px 18px 4px 18px; align-self: flex-end; box-shadow: 0 4px 16px rgba(37, 68, 135, 0.25); }
+.ai-bubble { background: var(--surface-variant); color: var(--on-surface); border-radius: 18px 18px 18px 4px; align-self: flex-start; border-left: 3px solid var(--secondary); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+
+.mode-toggle { background: var(--surface-variant); padding: 4px 12px; border-radius: 12px; cursor: pointer; font-size: 12px; border: 1px solid var(--border); transition: all 0.3s; }
+.mode-toggle.agent-active { border-color: var(--primary); color: var(--primary); box-shadow: 0 0 8px rgba(173, 198, 255, 0.3); }
+
+/* INPUT & SEND BUTTON */
+.glass-input-box-wrapper { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 6px; 
+    width: 100%; 
+    position: relative; 
+    z-index: 10;
+    flex-shrink: 0;
+    padding-bottom: 6px;
+    margin-top: auto;
+}
+.glass-input-box { 
+    margin: 4px 16px 8px; 
+    background: var(--glass-bg); 
+    backdrop-filter: blur(16px); 
+    -webkit-backdrop-filter: blur(16px); 
+    border: 1px solid var(--border); 
+    border-radius: 24px; 
+    padding: 8px 12px; 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3); 
+    position: relative; 
+    z-index: 90; 
+}
+.glass-input-box textarea { 
+    flex-grow: 1; 
+    resize: none; 
+    max-height: 120px; 
+    font-size: 14px; 
+    padding: 6px 0; 
+    outline: none; 
+    line-height: 1.4; 
+    color: #fff; 
+}
+
+.send-btn { 
+    background: var(--primary); 
+    color: var(--bg); 
+    width: 0; 
+    height: 40px; 
+    border-radius: 50%; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    cursor: pointer; 
+    flex-shrink: 0; 
+    opacity: 0; 
+    visibility: hidden; 
+    transform: scale(0.8); 
+    padding: 0; 
+    margin: 0; 
+    overflow: hidden; 
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
+    border: none;
+}
+.send-btn.active { 
+    opacity: 1; 
+    visibility: visible; 
+    transform: scale(1); 
+    width: 40px; 
+}
+
+/* NOTES INTEGRATED PANEL */
+.notes-toolbar { height: 44px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 8px; flex-shrink: 0; }
+.notes-editor { flex-grow: 1; min-height: 0; padding: 16px; overflow-y: auto; outline: none; font-size: 15px; line-height: 1.6; color: var(--on-surface); }
+.notes-editor[placeholder]:empty:before { content: attr(placeholder); color: var(--on-surface-variant); opacity: 0.5; }
+
+/* BURGER MENU & DRAWER */
+.drawer-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 999; display: none; opacity: 0; transition: opacity 0.3s ease; }
+.drawer-overlay.active { display: block; opacity: 1; }
+.chat-drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 300px; background: var(--surface); border-right: 1px solid var(--border); box-shadow: 8px 0 32px rgba(0,0,0,0.8); z-index: 1000; transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; }
+.chat-drawer.active { transform: translateX(0); }
+
+.drawer-header { height: 56px; padding: 0 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-weight: bold; flex-shrink: 0; }
+.drawer-title { display: flex; align-items: center; gap: 8px; color: var(--primary); }
+.drawer-body { flex-grow: 1; min-height: 0; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+
+.core-node-link-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(173, 198, 255, 0.1); border: 1px solid var(--primary); color: var(--primary); text-decoration: none; padding: 10px; border-radius: 12px; font-size: 13px; font-weight: 600; transition: background 0.2s; }
+.core-node-link-btn:hover { background: rgba(173, 198, 255, 0.2); }
+
+.drawer-section-title { font-size: 11px; text-transform: uppercase; color: var(--on-surface-variant); font-weight: bold; margin-top: 8px; }
+.chat-history-list { display: flex; flex-direction: column; gap: 6px; }
+.chat-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; font-size: 13px; cursor: pointer; color: var(--on-surface-variant); transition: background 0.2s, color 0.2s; }
+.chat-item:hover { background: var(--surface-variant); color: var(--on-surface); }
+.chat-item.active { background: var(--primary-container); color: white; }
+.drawer-footer { padding: 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+
+/* MODALS */
+.migration-overlay { position: fixed; inset: 0; background: rgba(10, 11, 16, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; animation: fadeInModal 0.25s ease; }
+.migration-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 24px; width: 100%; max-width: 420px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7); display: flex; flex-direction: column; gap: 12px; color: #fff; }
+
+.whats-new-modal { max-width: 450px !important; }
+.whats-new-header { display: flex; align-items: center; gap: 10px; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.whats-new-icon { font-size: 28px; }
+.whats-new-content { max-height: 280px; overflow-y: auto; margin: 8px 0; }
+.whats-new-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+.whats-new-list li strong { display: block; font-size: 14px; color: var(--on-surface); margin-bottom: 2px; }
+.whats-new-list li span { font-size: 13px; color: var(--on-surface-variant); line-height: 1.4; }
+
+.projects-modal-box { max-width: 480px !important; }
+.modal-header-row { display: flex; align-items: center; justify-content: space-between; }
+.projects-list-container { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; padding-right: 4px; margin-top: 8px; }
+
+.project-card-item { display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); padding: 10px 14px; border-radius: 12px; transition: background 0.2s, border-color 0.2s; }
+.project-card-item.active-project { border-color: var(--primary); background: rgba(173, 198, 255, 0.08); }
+.project-info-click { display: flex; align-items: center; gap: 10px; cursor: pointer; flex-grow: 1; }
+.project-card-title { font-size: 14px; font-weight: 600; color: var(--on-surface); }
+.project-card-badge { font-size: 10px; background: var(--primary-container); color: var(--primary); padding: 2px 6px; border-radius: 6px; text-transform: uppercase; }
+.project-card-actions { display: flex; align-items: center; gap: 4px; }
+
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+@keyframes pulseBlob { 0% { transform: scale(0.92); opacity: 0.75; } 100% { transform: scale(1.08); opacity: 1; } }
+@keyframes bubbleIn { to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeInModal { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.hidden { display: none !important; }
+
+#voice-btn.recording { color: var(--accent-red); animation: voicePulse 1.2s infinite ease-in-out; }
+@keyframes voicePulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+
+.dropdown-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 6px 0; }
+.dropdown-toggle-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-size: 13px; color: #ccc; }
+
+.switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--surface-variant); border: 1px solid var(--border); transition: .3s; border-radius: 22px; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: var(--on-surface-variant); transition: .3s; border-radius: 50%; }
+input:checked + .slider { background-color: var(--primary-container); border-color: var(--primary); }
+input:checked + .slider:before { transform: translateX(18px); background-color: var(--primary); }
+
+.toast-notification {
+    position: fixed;
+    bottom: 74px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--surface-variant);
+    border: 1px solid var(--primary);
+    color: var(--on-surface);
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    z-index: 10000;
+    opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+    pointer-events: none;
+}
+.toast-notification.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.icon-context-menu { right: 6px; top: 40px; width: 140px; }
+
+/* ==========================================
+   АДАПТИВНОСТЬ ДЛЯ ДЕСКТОПА (>= 1024px)
+   ========================================== */
+@media (min-width: 1024px) {
+    .grid-layout { 
+        display: grid; 
+        grid-template-columns: var(--left-panel-width) 1fr var(--right-panel-width); 
+        transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        overflow: hidden; 
+    }
+    .mobile-coding-tools { display: none !important; }
+    .panel-left { border-right: 1px solid var(--border); background: var(--surface); display: flex !important; }
+    .panel-center { border-right: 1px solid var(--border); background: var(--bg); display: flex !important; }
+    .panel-right { background: var(--surface); display: flex !important; }
+    .grid-layout.left-docked { grid-template-columns: 50px 1fr var(--right-panel-width); }
+    .panel-left.docked .panel-content, .panel-left.docked .panel-footer, .panel-left.docked .panel-header-title { display: none !important; }
+    .panel-left.docked .panel-header { justify-content: center; padding: 0; }
+    .toast-notification { bottom: 24px; }
+}
+
+/* ==========================================
+   АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ (<= 1023px)
+   ========================================== */
+@media (max-width: 1023px) {
+    .grid-layout {
+        display: block !important;
+        height: calc(100vh - var(--header-height)) !important;
+        height: calc(100dvh - var(--header-height)) !important;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .panel-left, 
+    .panel-center, 
+    .panel-right {
+        display: none !important;
+        width: 100% !important;
+        height: 100% !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        box-sizing: border-box !important;
+        /* space for floating nav */
+        padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    .panel-left.mobile-active, 
+    .panel-center.mobile-active, 
+    .panel-right.mobile-active {
+        display: flex !important;
+        flex-direction: column;
+    }
+
+    /* Floating glass nav — like Core Node */
+    .mobile-nav-bar {
+        display: flex !important;
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        width: min(360px, calc(100% - 24px));
+        height: 56px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 24px;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 1000;
+        padding: 4px 6px;
+        box-shadow: 0 10px 32px rgba(0,0,0,0.45);
+        gap: 2px;
+    }
+
+    .mobile-nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        color: var(--on-surface-variant);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        cursor: pointer;
+        flex: 1;
+        height: 100%;
+        border-radius: 18px;
+        transition: background 0.2s, color 0.2s;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    .mobile-nav-item .material-symbols-rounded {
+        font-size: 22px;
+    }
+
+    .mobile-nav-item.active {
+        color: var(--primary);
+        background: var(--primary-container);
+    }
+
+    .mobile-nav-item:active {
+        transform: scale(0.96);
+    }
+
+    #btn-dock-left {
+        display: none !important;
+    }
+
+    .toast-notification {
+        bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .glass-input-box-wrapper {
+        padding-bottom: 4px;
+    }
+}
+/* Bridge + settings */
+.bridge-card {
+    background: rgba(173, 198, 255, 0.08);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.bridge-card-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--primary);
+}
+.bridge-hint {
+    font-size: 12px;
+    color: var(--on-surface-variant);
+    line-height: 1.4;
+}
+.bridge-key {
+    display: block;
+    font-size: 11px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--surface-variant);
+    border: 1px dashed var(--border);
+    color: var(--primary);
+    word-break: break-all;
+}
+.bridge-status {
+    font-size: 12px;
+    font-weight: 600;
+}
+.bridge-status.ok { color: #7dd3a8; }
+.bridge-status.warn { color: #ffb74d; }
+.bridge-status.err { color: var(--accent-red); }
+.chat-item.muted { opacity: 0.65; cursor: default; }
+.chat-item .chat-item-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+.settings-stack { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.settings-label { font-size: 13px; font-weight: 600; }
+.settings-desc { font-size: 11px; color: var(--on-surface-variant); margin-top: 2px; }
+.settings-input {
+    width: 100%;
+    background: var(--surface-variant);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--on-surface);
+}
+body.compact-chat .chat-bubble { padding: 8px 12px; font-size: 13px; }
+body.compact-chat .chat-flow-box { gap: 8px; }
+
+.core-chats-error-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+    padding: 16px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 82, 82, 0.35);
+    background: rgba(255, 82, 82, 0.08);
+}
+.core-chats-error-icon {
+    font-size: 32px;
+    color: var(--accent-red);
+}
+.core-chats-error-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--on-surface);
+}
+.core-chats-error-text {
+    font-size: 13px;
+    color: var(--on-surface-variant);
+    line-height: 1.4;
+}
+.core-chats-error-detail {
+    font-size: 11px;
+    color: var(--accent-red);
+    opacity: 0.85;
+    word-break: break-word;
+}
+.core-chats-reload-btn {
+    width: 100%;
+    margin-top: 4px;
+}
+
+/* Coding symbols keyboard + pin modal */
+.custom-keyboard {
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)) !important;
+    align-items: stretch;
+}
+.custom-keyboard .key-btn.more-symbols-btn {
+    grid-column: span 2;
+    background: var(--primary-container);
+    color: var(--primary);
+    font-size: 18px;
+    letter-spacing: 2px;
+}
+.symbols-picker-modal {
+    max-width: 440px !important;
+    max-height: 85vh;
+    position: relative;
+}
+.symbols-hint {
+    font-size: 12px;
+    color: var(--on-surface-variant);
+    line-height: 1.4;
+    margin: 0;
+}
+.symbols-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+    gap: 6px;
+    max-height: 40vh;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+.symbols-grid.pinned {
+    max-height: 120px;
+    min-height: 48px;
+}
+.sym-btn {
+    background: var(--surface-variant);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 0;
+    font-weight: 700;
+    font-size: 15px;
+    text-align: center;
+    cursor: pointer;
+    color: var(--on-surface);
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background 0.15s, border-color 0.15s;
+}
+.sym-btn:active { transform: scale(0.95); }
+.sym-btn.pinned-mark {
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 0 1px rgba(173, 198, 255, 0.25);
+}
+.symbols-divider {
+    text-align: center;
+    color: var(--on-surface-variant);
+    font-size: 12px;
+    letter-spacing: 4px;
+    margin: 8px 0 4px;
+    opacity: 0.7;
+}
+.symbols-pinned-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--on-surface-variant);
+    margin-bottom: 4px;
+}
+.symbols-ctx-menu {
+    position: fixed;
+    z-index: 10050;
+    background: var(--surface-variant);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px;
+    min-width: 140px;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.symbols-ctx-menu button {
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--on-surface);
+}
+.symbols-ctx-menu button:hover {
+    background: var(--primary-container);
+    color: var(--primary);
+}
+
+/* Smart tip above AI input */
+.oracle-smart-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0 16px 6px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(173,198,255,0.16), rgba(232,187,241,0.1));
+    border: 1px solid rgba(173, 198, 255, 0.28);
+    animation: tipIn 0.35s ease;
+}
+.oracle-smart-tip.hidden { display: none !important; }
+.oracle-smart-tip .tip-icon {
+    color: var(--primary);
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.oracle-smart-tip .tip-text {
+    flex: 1;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--on-surface);
+}
+.oracle-smart-tip .tip-close {
+    background: none;
+    border: none;
+    color: var(--on-surface-variant);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 8px;
+    display: inline-flex;
+}
+.oracle-smart-tip .tip-close:hover { color: var(--primary); background: rgba(255,255,255,0.06); }
+@keyframes tipIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.oracle-model-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 16px 6px;
+    position: relative;
+}
+.model-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-variant);
+    color: var(--on-surface-variant);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.model-chip .material-symbols-rounded { font-size: 16px; }
+.model-chip .chev { font-size: 14px; opacity: 0.7; }
+.model-chip.active {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(173, 198, 255, 0.12);
+}
+.model-chip.studio {
+    border-style: dashed;
+}
+.model-picker {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 6px);
+    min-width: 220px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 6px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+    z-index: 95;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.model-option {
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.model-option strong { font-size: 13px; color: var(--on-surface); }
+.model-option span { font-size: 11px; color: var(--on-surface-variant); }
+.model-option:hover, .model-option.active {
+    background: var(--primary-container);
+}
+.model-option.active strong { color: var(--primary); }
+
+.ai-studio-modal { max-width: 520px !important; max-height: 88vh; }
+.studio-sub { font-size: 13px; color: var(--on-surface-variant); margin: 0; line-height: 1.4; }
+.studio-toolbar { margin: 4px 0; }
+.ai-studio-list { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; }
+.studio-card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.studio-card-title { font-weight: 700; font-size: 14px; color: var(--on-surface); }
+.studio-card-meta { font-size: 11px; color: var(--on-surface-variant); }
+.studio-card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.studio-card-actions button {
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-variant);
+    color: var(--on-surface);
+    cursor: pointer;
+}
+.studio-card-actions button.primary {
+    background: var(--primary-container);
+    color: var(--primary);
+    border-color: transparent;
+}
+.studio-empty-hint { font-size: 12px; color: var(--on-surface-variant); margin: 8px 0 0; }
+
+/* Closer to Core Node PRO chat */
+#view-ai .ai-bubble {
+    background: transparent;
+    border-left: none;
+    box-shadow: none;
+    border-radius: 0;
+    max-width: 100%;
+    align-self: stretch;
+    padding: 8px 4px 12px;
+}
+#view-ai .user-bubble {
+    background: color-mix(in srgb, var(--primary) 28%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+    backdrop-filter: blur(10px);
+}
+
+/* Theme variants (Core Node PRO-like) */
+body.light-theme {
+    --bg: #f4f5fa;
+    --surface: #ffffff;
+    --surface-variant: #e7e9f3;
+    --on-surface: #1a1b26;
+    --on-surface-variant: #575a6c;
+    --primary: #2b56c6;
+    --primary-container: #d9e2ff;
+    --secondary: #9048a3;
+    --border: #c4c7d5;
+    --glass-bg: rgba(255, 255, 255, 0.88);
+    --accent-red: #d32f2f;
+}
+body.true-black-theme {
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --surface-variant: #141414;
+    --on-surface: #ffffff;
+    --on-surface-variant: #a0a0a0;
+    --primary: #adc6ff;
+    --primary-container: #222222;
+    --secondary: #cccccc;
+    --border: #262626;
+    --glass-bg: rgba(10, 10, 10, 0.9);
+}
+body.light-theme .glass-input-box textarea { color: var(--on-surface); }
+body.light-theme #code-editor { color: #1b7a3d; }
+body.light-theme .top-bar,
+body.light-theme .panel-left,
+body.light-theme .panel-right,
+body.light-theme .chat-drawer {
+    box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+}
+body {
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+.settings-block { margin-bottom: 4px; }
+.theme-switcher {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+.theme-opt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 6px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-variant);
+    color: var(--on-surface-variant);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.theme-opt.active {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.theme-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+}
+.theme-swatch.dark {
+    background: linear-gradient(135deg, #0a0b10 50%, #1f202e 50%);
+}
+.theme-swatch.light {
+    background: linear-gradient(135deg, #f4f5fa 50%, #ffffff 50%);
+    border-color: #c4c7d5;
+}
+.theme-swatch.true-black {
+    background: #000;
+    box-shadow: inset 0 0 0 1px #333;
+}
+
+/* Core Node rich AI (Markdown / code) inside Notepad bubbles */
+.ai-bubble .ai-md-body { font-size: 14px; line-height: 1.55; }
+.ai-bubble .ai-md-body .ai-p { margin: 0 0 8px; }
+.ai-bubble .ai-md-body .ai-h { margin: 10px 0 6px; font-weight: 700; }
+.ai-bubble .ai-md-body .ai-ul { margin: 6px 0 10px 1.1em; padding: 0; }
+.ai-bubble .ai-inline-code {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.88em;
+    background: rgba(0,0,0,0.25);
+    border-radius: 6px;
+    padding: 1px 5px;
+}
+.ai-bubble .ai-code-window {
+    margin: 10px 0 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: #0c0d12;
+    overflow: hidden;
+}
+.ai-bubble .ai-code-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.ai-bubble .ai-code-lang {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--primary);
+}
+.ai-bubble .ai-code-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: none;
+    background: rgba(255,255,255,0.06);
+    color: var(--on-surface-variant);
+    border-radius: 8px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.ai-bubble .ai-code-copy .material-symbols-rounded { font-size: 14px; }
+.ai-bubble .ai-code-pre {
+    margin: 0;
+    padding: 12px;
+    overflow-x: auto;
+    max-height: 320px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #e6edf3;
+}
+.ai-bubble .ai-code-pre code { font-family: inherit; white-space: pre; }
+.ai-bubble .ai-figure { margin: 10px 0; max-width: 100%; }
+.ai-bubble .ai-gen-image {
+    display: block;
+    width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    cursor: zoom-in;
+}
+.ai-bubble .ai-link { color: var(--primary); }
+
+</style>
 </head>
 <body class="dark-theme">
 
@@ -21,6 +1036,9 @@
         </div>
         
         <div class="header-actions">
+            <button class="icon-btn" id="btn-theme-quick" title="Тема">
+                <span class="material-symbols-rounded" id="theme-quick-icon">dark_mode</span>
+            </button>
             <button class="icon-btn" id="btn-open-settings-panel" title="Настройки">
                 <span class="material-symbols-rounded">settings</span>
             </button>
@@ -137,7 +1155,7 @@
                     <span class="material-symbols-rounded">menu</span>
                 </button>
                 
-                <div class="mode-toggle" id="mode-toggle" title="Переключить режим ИИ">
+                <div class="mode-toggle" id="mode-toggle" title="Режим: диалог / код / заметка">
                     <span id="mode-label">Диалог</span>
                 </div>
 
@@ -164,13 +1182,45 @@
                 </div>
 
                 <div class="glass-input-box-wrapper">
+                    <div id="oracle-smart-tip" class="oracle-smart-tip" role="status">
+                        <span class="material-symbols-rounded tip-icon">auto_awesome</span>
+                        <span class="tip-text" id="oracle-smart-tip-text">Core Node 2.6 стал умнее — хотите что-то сгенерировать? Просто напишите</span>
+                        <button type="button" class="tip-close" id="oracle-smart-tip-close" title="Скрыть" aria-label="Скрыть">
+                            <span class="material-symbols-rounded">close</span>
+                        </button>
+                    </div>
+                    <div class="oracle-model-row">
+                        <button type="button" class="model-chip active" id="model-chip" title="Модель ИИ">
+                            <span class="material-symbols-rounded">bolt</span>
+                            <span id="model-chip-label">Intify 2.5.3 Flash</span>
+                            <span class="material-symbols-rounded chev">expand_more</span>
+                        </button>
+                        <button type="button" class="model-chip studio" id="btn-open-ai-studio" title="AI Studio">
+                            <span class="material-symbols-rounded">dashboard_customize</span>
+                            <span>AI Studio</span>
+                        </button>
+                        <div id="model-picker" class="model-picker" style="display:none;">
+                            <button type="button" class="model-option active" data-model="intify-2.5.3-flash">
+                                <strong>Intify 2.5.3 Flash</strong>
+                                <span>Coding · быстрые ответы</span>
+                            </button>
+                            <button type="button" class="model-option" data-model="oracle-main">
+                                <strong>Oracle Main</strong>
+                                <span>Универсальный диалог</span>
+                            </button>
+                            <button type="button" class="model-option" data-model="worldpack">
+                                <strong>Worldpack AI</strong>
+                                <span>Миры и комнаты</span>
+                            </button>
+                        </div>
+                    </div>
                     <div class="glass-input-box">
                         <button type="button" class="icon-btn" id="btn-attach" title="Прикрепить файл">
                             <span class="material-symbols-rounded">add</span>
                         </button>
                         <input type="file" id="attach-file-input" style="display: none;" multiple>
 
-                        <textarea id="oracle-input" placeholder="Ask..." rows="1"></textarea>
+                        <textarea id="oracle-input" placeholder="Спросите Intify 2.5.3 Flash…" rows="1"></textarea>
 
                         <button type="button" class="icon-btn" id="voice-btn" title="Голосовой ввод">
                             <span class="material-symbols-rounded">mic</span>
@@ -260,25 +1310,25 @@
     <div class="migration-modal whats-new-modal">
         <div class="whats-new-header">
             <span class="material-symbols-rounded whats-new-icon">new_releases</span>
-            <h3>Что нового в Oracle Notepad v2.6</h3>
+            <h3>Что нового в Oracle Notepad 2.6.1</h3>
         </div>
         <div class="whats-new-content">
             <ul class="whats-new-list">
                 <li>
-                    <strong>Обновление Искуственного Интеллекта</strong>
-                    <span>Это основная Часть обновления <b>Oracle Notepad 2.6</b> чтобы Интеллект стал умнее и более персонализированее. Попробуйте.</span>
+                    <strong>Coding Model · Intify 2.5.3 Flash</strong>
+                    <span>Новая модель Оракула для кода и быстрых ответов. Выберите её над полем ввода.</span>
                 </li>
                 <li>
-                    <strong>Заметки теперь не вылазят на весь экран как раньше</strong>
-                    <span>Теперь если вы хотите написать заметку, просто переключите ИИ на Заметки, или наоборот</span>
+                    <strong>AI Studio</strong>
+                    <span>Витрина проектов, улучшенных или созданных ИИ — открывается кнопкой AI Studio.</span>
                 </li>
                 <li>
-                    <strong>Автосохранение в Память Браузера</strong>
-                    <span>Теперь каждые 2 минуты или после каждой правки у вас будет Автоматически сохранятся "ИИ разговоры", "Заметки", "Коды", и Данные, этот тумблер можно отключить, правда не рекомендуем</span>
+                    <strong>Символьная клавиатура</strong>
+                    <span>⋯ → все символы, ПКМ / long-press → закрепить до 10. Закреплённые на панели клавиатуры.</span>
                 </li>
                 <li>
-                    <strong>Исправлены Баги</strong>
-                    <span>Баги были исправлены</span>
+                    <strong>Связка с Core Node PRO 2.6</strong>
+                    <span>Синхронизация чатов через oracle_chat_sessions + умные подсказки над полем ИИ.</span>
                 </li>
             </ul>
         </div>
@@ -364,6 +1414,24 @@
             </button>
         </div>
         <div class="settings-stack">
+            <div class="settings-block">
+                <div class="settings-label">Тема</div>
+                <div class="settings-desc" style="margin-bottom:8px;">Как в Core Node PRO</div>
+                <div class="theme-switcher" id="theme-switcher">
+                    <button type="button" class="theme-opt active" data-theme="dark" title="Тёмная">
+                        <span class="theme-swatch dark"></span>
+                        <span>Тёмная</span>
+                    </button>
+                    <button type="button" class="theme-opt" data-theme="light" title="Светлая">
+                        <span class="theme-swatch light"></span>
+                        <span>Светлая</span>
+                    </button>
+                    <button type="button" class="theme-opt" data-theme="true-black" title="True Black">
+                        <span class="theme-swatch true-black"></span>
+                        <span>True Black</span>
+                    </button>
+                </div>
+            </div>
             <div class="settings-row">
                 <div>
                     <div class="settings-label">Автосохранение</div>
@@ -422,6 +1490,24 @@
     </div>
 </div>
 
+
+<div class="migration-overlay" id="aiStudioModal" style="display:none;">
+    <div class="migration-modal ai-studio-modal">
+        <div class="modal-header-row">
+            <h3><span class="material-symbols-rounded" style="vertical-align:middle;color:var(--primary);">dashboard_customize</span> AI Studio</h3>
+            <button type="button" class="icon-btn" id="btn-close-ai-studio"><span class="material-symbols-rounded">close</span></button>
+        </div>
+        <p class="studio-sub">Проекты, улучшенные или созданные ИИ (Intify 2.5.3 Flash)</p>
+        <div class="studio-toolbar">
+            <button type="button" class="action-btn" id="btn-studio-new">
+                <span class="material-symbols-rounded">add</span> Новый AI-проект
+            </button>
+        </div>
+        <div id="ai-studio-list" class="ai-studio-list"></div>
+        <p class="studio-empty-hint" id="studio-empty-hint">Пока пусто — сгенерируйте код в чате или создайте проект вручную.</p>
+    </div>
+</div>
+
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" style="display:none;">
   <defs>
     <filter id="gooey">
@@ -431,6 +1517,1559 @@
   </defs>
 </svg>
 
-<script src="script.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const APP_VERSION = '2.6.1';
+    const whatsNewModal = document.getElementById('whatsNewModal');
+    const btnCloseWhatsNew = document.getElementById('btn-close-whats-new');
+    const savedVersion = localStorage.getItem('oracle_notepad_version');
+
+    if (whatsNewModal && savedVersion !== APP_VERSION) {
+        whatsNewModal.style.display = 'flex';
+    }
+
+    if (btnCloseWhatsNew && whatsNewModal) {
+        btnCloseWhatsNew.addEventListener('click', () => {
+            whatsNewModal.style.display = 'none';
+            localStorage.setItem('oracle_notepad_version', APP_VERSION);
+        });
+    }
+
+    // ЭЛЕМЕНТЫ
+    const btnSettings = document.getElementById('btn-settings');
+    const exportMenu = document.getElementById('export-menu');
+
+    const gridLayout = document.querySelector('.grid-layout');
+    const panelInfo = document.getElementById('panel-info');
+    const btnDockLeft = document.getElementById('btn-dock-left');
+    const dockLeftIcon = document.getElementById('dock-left-icon');
+
+    const codeEditor = document.getElementById('code-editor');
+    const toggleKeyboard = document.getElementById('toggle-keyboard');
+    const codingKeyboard = document.getElementById('coding-keyboard');
+
+    const btnToggleNotes = document.getElementById('btn-toggle-notes');
+    const notesIcon = document.getElementById('notes-icon');
+    const viewAi = document.getElementById('view-ai');
+    const viewNotes = document.getElementById('view-notes');
+    const notesEditor = document.getElementById('notes-editor');
+    
+    const oracleInput = document.getElementById('oracle-input');
+    const sendBtn = document.getElementById('send-btn');
+    const chatFlow = document.getElementById('chat-flow');
+    const welcomeBlock = document.getElementById('welcome-block');
+
+    const metaName = document.getElementById('meta-name');
+    const toast = document.getElementById('toast-notification');
+    const autoSaveToggle = document.getElementById('auto-save-toggle');
+    const btnSaveLocal = document.getElementById('btn-save-local');
+
+    // КНОПКИ ПРИКРЕПЛЕНИЯ ФАЙЛА И МИКРОФОНА В ЧАТЕ
+    const btnAttach = document.getElementById('btn-attach');
+    const attachFileInput = document.getElementById('attach-file-input');
+    const voiceBtn = document.getElementById('voice-btn');
+
+    // МОБИЛЬНЫЕ ВКЛАДКИ
+    const mobileNavItems = document.querySelectorAll('.mobile-nav-item');
+    const panels = [document.getElementById('panel-info'), document.getElementById('panel-coding'), document.getElementById('panel-oracle')];
+
+    mobileNavItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const targetId = item.getAttribute('data-target');
+            mobileNavItems.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+
+            panels.forEach(p => {
+                if (p) {
+                    if (p.id === targetId) {
+                        p.classList.add('mobile-active');
+                    } else {
+                        p.classList.remove('mobile-active');
+                    }
+                }
+            });
+        });
+    });
+
+    // TOAST
+    function showToast(text = 'Сохранено в Данных') {
+        if (!toast) return;
+        toast.querySelector('span:last-child').textContent = text;
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2200);
+    }
+
+    // 1. СВОРАЧИВАНИЕ ЛЕВОЙ ПАНЕЛИ
+    if (btnDockLeft) {
+        btnDockLeft.addEventListener('click', () => {
+            if (window.innerWidth >= 1024) {
+                const isDocked = gridLayout.classList.toggle('left-docked');
+                panelInfo.classList.toggle('docked');
+                if (dockLeftIcon) {
+                    dockLeftIcon.textContent = isDocked ? 'dock_to_right' : 'dock_to_left';
+                }
+            }
+        });
+    }
+
+    // 2. ИМПОРТ ИЗОБРАЖЕНИЯ И КОНТЕКСТНОЕ МЕНЮ
+    const btnAddProjectIcon = document.getElementById('btn-add-project-icon');
+    const projectIconInput = document.getElementById('project-icon-input');
+    const projectIconPreviewWrapper = document.getElementById('project-icon-preview-wrapper');
+    const projectIconImg = document.getElementById('project-icon-img');
+    const btnIconMenu = document.getElementById('btn-icon-menu');
+    const iconContextMenu = document.getElementById('icon-context-menu');
+    const btnChangeIcon = document.getElementById('btn-change-icon');
+    const btnRemoveIcon = document.getElementById('btn-remove-icon');
+
+    let currentProjectIconBase64 = '';
+
+    if (btnAddProjectIcon && projectIconInput) {
+        btnAddProjectIcon.addEventListener('click', () => projectIconInput.click());
+    }
+
+    if (btnChangeIcon && projectIconInput) {
+        btnChangeIcon.addEventListener('click', () => {
+            if (iconContextMenu) iconContextMenu.classList.remove('active');
+            projectIconInput.click();
+        });
+    }
+
+    if (btnIconMenu && iconContextMenu) {
+        btnIconMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+            iconContextMenu.classList.toggle('active');
+        });
+        document.addEventListener('click', () => iconContextMenu.classList.remove('active'));
+    }
+
+    if (projectIconInput) {
+        projectIconInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    currentProjectIconBase64 = event.target.result;
+                    renderProjectIcon();
+                    handleAutoSaveInput();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    if (btnRemoveIcon) {
+        btnRemoveIcon.addEventListener('click', () => {
+            if (iconContextMenu) iconContextMenu.classList.remove('active');
+            currentProjectIconBase64 = '';
+            renderProjectIcon();
+            handleAutoSaveInput();
+        });
+    }
+
+    function renderProjectIcon() {
+        if (currentProjectIconBase64) {
+            if (projectIconImg) projectIconImg.src = currentProjectIconBase64;
+            if (projectIconPreviewWrapper) projectIconPreviewWrapper.classList.remove('hidden');
+            if (btnAddProjectIcon) btnAddProjectIcon.classList.add('hidden');
+        } else {
+            if (projectIconImg) projectIconImg.src = '';
+            if (projectIconPreviewWrapper) projectIconPreviewWrapper.classList.add('hidden');
+            if (btnAddProjectIcon) btnAddProjectIcon.classList.remove('hidden');
+        }
+    }
+
+    // МОДАЛЬНЫЕ ОКНА
+    const alertModal = document.getElementById('alertModal');
+    const alertTitle = document.getElementById('alertModalTitle');
+    const alertMsg = document.getElementById('alertModalMessage');
+    const btnCloseAlert = document.getElementById('btn-close-alert');
+
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmTitle = document.getElementById('confirmModalTitle');
+    const confirmMsg = document.getElementById('confirmModalMessage');
+    const btnCancelConfirm = document.getElementById('btn-cancel-confirm');
+    const btnAcceptConfirm = document.getElementById('btn-accept-confirm');
+    let onConfirmCallback = null;
+
+    const inputModal = document.getElementById('inputModal');
+    const inputTitle = document.getElementById('inputModalTitle');
+    const inputLabel = document.getElementById('inputModalLabel');
+    const customInputValue = document.getElementById('customInputValue');
+    const btnCancelInput = document.getElementById('btn-cancel-input');
+    const btnConfirmInput = document.getElementById('btn-confirm-input');
+    let onInputCallback = null;
+
+    window.showAlert = function(message, title = 'Уведомление') {
+        if (!alertModal) return;
+        alertTitle.textContent = title;
+        alertMsg.textContent = message;
+        alertModal.style.display = 'flex';
+    };
+    if (btnCloseAlert) btnCloseAlert.addEventListener('click', () => alertModal.style.display = 'none');
+
+    window.showConfirm = function(message, onConfirm, title = 'Подтверждение') {
+        if (!confirmModal) return;
+        confirmTitle.textContent = title;
+        confirmMsg.textContent = message;
+        onConfirmCallback = onConfirm;
+        confirmModal.style.display = 'flex';
+    };
+    if (btnCancelConfirm) btnCancelConfirm.addEventListener('click', () => confirmModal.style.display = 'none');
+    if (btnAcceptConfirm) {
+        btnAcceptConfirm.addEventListener('click', () => {
+            confirmModal.style.display = 'none';
+            if (typeof onConfirmCallback === 'function') onConfirmCallback();
+        });
+    }
+
+    window.showInput = function(title, label, defaultValue, onConfirm) {
+        if (!inputModal) return;
+        inputTitle.textContent = title;
+        inputLabel.textContent = label;
+        customInputValue.value = defaultValue || '';
+        onInputCallback = onConfirm;
+        inputModal.style.display = 'flex';
+        setTimeout(() => customInputValue.focus(), 100);
+    };
+    if (btnCancelInput) btnCancelInput.addEventListener('click', () => inputModal.style.display = 'none');
+    if (btnConfirmInput) {
+        btnConfirmInput.addEventListener('click', () => {
+            const val = customInputValue.value.trim();
+            inputModal.style.display = 'none';
+            if (typeof onInputCallback === 'function') onInputCallback(val);
+        });
+    }
+
+    // 3. WORLDS & ROOMS
+    let worlds = [
+        { id: 'world_1', name: 'World 1', rooms: [{ id: 'room_1', name: 'Room 1' }] }
+    ];
+
+    const btnCreateWorld = document.getElementById('btn-create-world');
+    const btnCreateRoom = document.getElementById('btn-create-room');
+    const explorerContainer = document.getElementById('explorer');
+
+    const roomModal = document.getElementById('roomModal');
+    const roomModalTitle = document.getElementById('roomModalTitle');
+    const roomWorldSelect = document.getElementById('roomWorldSelect');
+    const roomNameInput = document.getElementById('roomNameInput');
+    const btnCancelRoom = document.getElementById('btn-cancel-room');
+    const btnConfirmRoom = document.getElementById('btn-confirm-room');
+
+    let editingRoomContext = null;
+
+    if (btnCreateWorld) {
+        btnCreateWorld.addEventListener('click', () => {
+            showInput('Новый Мир', 'Введите имя Мира:', `World ${worlds.length + 1}`, (worldName) => {
+                if (worldName) {
+                    worlds.push({
+                        id: 'world_' + Date.now(),
+                        name: worldName,
+                        rooms: []
+                    });
+                    renderExplorer();
+                    handleAutoSaveInput();
+                }
+            });
+        });
+    }
+
+    function populateWorldSelect(selectedWorldId = null) {
+        if (!roomWorldSelect) return;
+        roomWorldSelect.innerHTML = '';
+        worlds.forEach(w => {
+            const opt = document.createElement('option');
+            opt.value = w.id;
+            opt.textContent = w.name;
+            if (selectedWorldId && w.id === selectedWorldId) opt.selected = true;
+            roomWorldSelect.appendChild(opt);
+        });
+    }
+
+    if (btnCreateRoom) {
+        btnCreateRoom.addEventListener('click', () => {
+            if (worlds.length === 0) {
+                showAlert('Сначала создайте хотя бы один Мир!');
+                return;
+            }
+            editingRoomContext = null;
+            if (roomModalTitle) roomModalTitle.textContent = 'Создание комнаты';
+            populateWorldSelect();
+            if (roomNameInput) roomNameInput.value = '';
+            if (roomModal) roomModal.style.display = 'flex';
+        });
+    }
+
+    if (btnCancelRoom && roomModal) {
+        btnCancelRoom.addEventListener('click', () => roomModal.style.display = 'none');
+    }
+
+    if (btnConfirmRoom) {
+        btnConfirmRoom.addEventListener('click', () => {
+            const targetWorldId = roomWorldSelect.value;
+            const targetWorld = worlds.find(w => w.id === targetWorldId);
+            if (!targetWorld) return;
+
+            let finalName = roomNameInput ? roomNameInput.value.trim() : '';
+
+            if (editingRoomContext) {
+                const { worldId, roomId } = editingRoomContext;
+                const sourceWorld = worlds.find(w => w.id === worldId);
+                const roomIndex = sourceWorld ? sourceWorld.rooms.findIndex(r => r.id === roomId) : -1;
+
+                if (sourceWorld && roomIndex !== -1) {
+                    const roomObj = sourceWorld.rooms[roomIndex];
+                    if (!finalName) {
+                        const count = targetWorld.rooms.length + 1;
+                        finalName = `Room #${count}`;
+                    }
+                    roomObj.name = finalName;
+
+                    if (worldId !== targetWorldId) {
+                        sourceWorld.rooms.splice(roomIndex, 1);
+                        targetWorld.rooms.push(roomObj);
+                    }
+                }
+            } else {
+                if (!finalName) {
+                    const count = targetWorld.rooms.length + 1;
+                    finalName = `Room #${count}`;
+                }
+                targetWorld.rooms.push({
+                    id: 'room_' + Date.now(),
+                    name: finalName
+                });
+            }
+
+            if (roomModal) roomModal.style.display = 'none';
+            renderExplorer();
+            handleAutoSaveInput();
+        });
+    }
+
+    function renderExplorer() {
+        if (!explorerContainer) return;
+        explorerContainer.innerHTML = '';
+
+        worlds.forEach(world => {
+            const group = document.createElement('div');
+            group.className = 'world-group';
+
+            const worldDiv = document.createElement('div');
+            worldDiv.className = 'explorer-item world-item';
+            worldDiv.innerHTML = `
+                <div class="item-title">
+                    <span class="material-symbols-rounded">language</span> ${escapeHtml(world.name)}
+                </div>
+                <div class="item-actions">
+                    <span class="material-symbols-rounded" onclick="editWorldName('${world.id}')" title="Переименовать Мир">edit</span>
+                    <span class="material-symbols-rounded" style="color: var(--accent-red);" onclick="deleteWorldPrompt('${world.id}')" title="Удалить Мир">close</span>
+                </div>
+            `;
+            group.appendChild(worldDiv);
+
+            world.rooms.forEach(room => {
+                const roomDiv = document.createElement('div');
+                roomDiv.className = 'explorer-item room-item';
+                roomDiv.innerHTML = `
+                    <div class="item-title">
+                        <span class="material-symbols-rounded">meeting_room</span> ${escapeHtml(room.name)}
+                    </div>
+                    <div class="item-actions">
+                        <span class="material-symbols-rounded" onclick="openEditRoomModal('${world.id}', '${room.id}')" title="Редактировать / Переместить">edit</span>
+                        <span class="material-symbols-rounded" style="color: var(--accent-red);" onclick="deleteRoomPrompt('${world.id}', '${room.id}')" title="Удалить">close</span>
+                    </div>
+                `;
+                group.appendChild(roomDiv);
+            });
+
+            explorerContainer.appendChild(group);
+        });
+    }
+
+    window.editWorldName = function(worldId) {
+        const world = worlds.find(w => w.id === worldId);
+        if (!world) return;
+        showInput('Редактировать Мир', 'Имя мира:', world.name, (newName) => {
+            if (newName) {
+                world.name = newName;
+                renderExplorer();
+                handleAutoSaveInput();
+            }
+        });
+    };
+
+    window.deleteWorldPrompt = function(worldId) {
+        const world = worlds.find(w => w.id === worldId);
+        if (!world) return;
+        showConfirm(`Вы уверены, что хотите удалить Мир "${world.name}" и все его комнаты?\nДействие нельзя будет отменить или восстановить!`, () => {
+            worlds = worlds.filter(w => w.id !== worldId);
+            renderExplorer();
+            handleAutoSaveInput();
+        }, 'Удаление Мира');
+    };
+
+    window.openEditRoomModal = function(worldId, roomId) {
+        const world = worlds.find(w => w.id === worldId);
+        if (!world) return;
+        const room = world.rooms.find(r => r.id === roomId);
+        if (!room) return;
+
+        editingRoomContext = { worldId, roomId };
+        if (roomModalTitle) roomModalTitle.textContent = 'Редактирование комнаты';
+        populateWorldSelect(worldId);
+        if (roomNameInput) roomNameInput.value = room.name;
+        if (roomModal) roomModal.style.display = 'flex';
+    };
+
+    window.deleteRoomPrompt = function(worldId, roomId) {
+        const world = worlds.find(w => w.id === worldId);
+        if (!world) return;
+        const room = world.rooms.find(r => r.id === roomId);
+        if (!room) return;
+
+        showConfirm(`Удалить комнату "${room.name}"?\nВосстановить её будет невозможно!`, () => {
+            world.rooms = world.rooms.filter(r => r.id !== roomId);
+            renderExplorer();
+            handleAutoSaveInput();
+        }, 'Удаление комнаты');
+    };
+
+    // ПРОЕКТЫ
+    let projects = JSON.parse(localStorage.getItem('oracle_projects_list')) || [
+        { id: 'name_01', name: 'Name_01' },
+        { id: 'project_alpha', name: 'Проект Альфа' }
+    ];
+
+    let activeProjectId = localStorage.getItem('oracle_active_project_id') || 'name_01';
+
+    const projectsModal = document.getElementById('projectsModal');
+    const btnOpenProjects = document.getElementById('btn-open-projects');
+    const btnCloseProjects = document.getElementById('btn-close-projects-modal');
+    const btnCreateProject = document.getElementById('btn-create-project');
+    const projectsListContainer = document.getElementById('projects-list');
+    const currentProjectDisplay = document.getElementById('current-project-name-display');
+
+    if (btnOpenProjects && projectsModal) {
+        btnOpenProjects.addEventListener('click', () => {
+            renderProjectsList();
+            projectsModal.style.display = 'flex';
+        });
+    }
+
+    if (btnCloseProjects && projectsModal) {
+        btnCloseProjects.addEventListener('click', () => projectsModal.style.display = 'none');
+    }
+
+    function renderProjectsList() {
+        if (!projectsListContainer) return;
+        projectsListContainer.innerHTML = '';
+        const activeProj = projects.find(p => p.id === activeProjectId) || projects[0];
+        if (currentProjectDisplay) currentProjectDisplay.textContent = activeProj.name;
+
+        projects.forEach(project => {
+            const card = document.createElement('div');
+            card.className = `project-card-item ${project.id === activeProjectId ? 'active-project' : ''}`;
+            card.innerHTML = `
+                <div class="project-info-click" onclick="switchProject('${project.id}')">
+                    <span class="material-symbols-rounded">folder</span>
+                    <span class="project-card-title">${escapeHtml(project.name)}</span>
+                    ${project.id === activeProjectId ? '<span class="project-card-badge">Активный</span>' : ''}
+                </div>
+                <div class="project-card-actions">
+                    <button class="icon-btn" title="Изменить" onclick="editProjectInfo('${project.id}')">
+                        <span class="material-symbols-rounded" style="font-size: 18px;">edit</span>
+                    </button>
+                    <button class="icon-btn" title="Удалить" onclick="deleteProject('${project.id}')">
+                        <span class="material-symbols-rounded" style="font-size: 18px; color: var(--accent-red);">delete</span>
+                    </button>
+                </div>
+            `;
+            projectsListContainer.appendChild(card);
+        });
+    }
+
+    window.switchProject = function(id) {
+        activeProjectId = id;
+        localStorage.setItem('oracle_active_project_id', activeProjectId);
+        renderProjectsList();
+        loadState();
+        projectsModal.style.display = 'none';
+    };
+
+    if (btnCreateProject) {
+        btnCreateProject.addEventListener('click', () => {
+            showInput('Новый проект', 'Введите название нового проекта:', '', (newName) => {
+                if (newName) {
+                    const newId = 'proj_' + Date.now();
+                    projects.push({ id: newId, name: newName });
+                    saveProjectsToStorage();
+                    switchProject(newId);
+                }
+            });
+        });
+    }
+
+    window.editProjectInfo = function(id) {
+        const project = projects.find(p => p.id === id);
+        if (!project) return;
+        showInput('Редактировать проект', 'Новое название:', project.name, (updatedName) => {
+            if (updatedName) {
+                project.name = updatedName;
+                saveProjectsToStorage();
+                renderProjectsList();
+                if (id === activeProjectId && currentProjectDisplay) currentProjectDisplay.textContent = updatedName;
+            }
+        });
+    };
+
+    window.deleteProject = function(id) {
+        if (projects.length <= 1) {
+            showAlert('Нельзя удалить единственный проект!');
+            return;
+        }
+        const project = projects.find(p => p.id === id);
+        showConfirm(`Удалить проект "${project.name}"?\nВсе данные этого проекта будут потеряны.`, () => {
+            projects = projects.filter(p => p.id !== id);
+            if (activeProjectId === id) {
+                activeProjectId = projects[0].id;
+                localStorage.setItem('oracle_active_project_id', activeProjectId);
+                loadState();
+            }
+            localStorage.removeItem(`oracle_notepad_storage_${id}`);
+            saveProjectsToStorage();
+            renderProjectsList();
+        }, 'Удаление проекта');
+    };
+
+    function saveProjectsToStorage() {
+        localStorage.setItem('oracle_projects_list', JSON.stringify(projects));
+    }
+
+    // СОХРАНЕНИЕ / АВТОСОХРАНЕНИЕ В LOCALSTORAGE
+    let autoSaveTimer = null;
+
+    function saveState(triggerToast = false) {
+        const activeProj = projects.find(p => p.id === activeProjectId) || projects[0];
+        const state = { 
+            projectName: activeProj.name, 
+            metaName: metaName ? metaName.value : '', 
+            code: codeEditor ? codeEditor.value : '', 
+            notes: notesEditor ? notesEditor.innerHTML : '',
+            projectIcon: currentProjectIconBase64,
+            worlds: worlds
+        };
+        localStorage.setItem(`oracle_notepad_storage_${activeProjectId}`, JSON.stringify(state));
+        if (triggerToast) showToast();
+    }
+
+    function handleAutoSaveInput() {
+        if (autoSaveToggle && autoSaveToggle.checked) {
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => {
+                saveState(true);
+            }, 800);
+        }
+    }
+
+    if (btnSaveLocal) {
+        btnSaveLocal.addEventListener('click', () => {
+            saveState(true);
+            if (exportMenu) exportMenu.classList.remove('active');
+        });
+    }
+
+    function loadState() {
+        const saved = localStorage.getItem(`oracle_notepad_storage_${activeProjectId}`);
+        const activeProj = projects.find(p => p.id === activeProjectId) || projects[0];
+        if (currentProjectDisplay) currentProjectDisplay.textContent = activeProj.name;
+
+        if (!saved) {
+            if (metaName) metaName.value = 'Ламирк';
+            if (codeEditor) codeEditor.value = '';
+            if (notesEditor) notesEditor.innerHTML = '';
+            currentProjectIconBase64 = '';
+            worlds = [{ id: 'world_1', name: 'World 1', rooms: [{ id: 'room_1', name: 'Room 1' }] }];
+            renderProjectIcon();
+            renderExplorer();
+            return;
+        }
+
+        try {
+            const state = JSON.parse(saved);
+            if (metaName) metaName.value = state.metaName || 'Ламирк';
+            if (codeEditor) codeEditor.value = state.code || '';
+            if (notesEditor) notesEditor.innerHTML = state.notes || '';
+            currentProjectIconBase64 = state.projectIcon || '';
+            worlds = state.worlds || [{ id: 'world_1', name: 'World 1', rooms: [{ id: 'room_1', name: 'Room 1' }] }];
+
+            renderProjectIcon();
+            renderExplorer();
+        } catch(e) {
+            console.error("Ошибка загрузки состояния", e);
+        }
+    }
+
+    // БУРГЕР-МЕНЮ ЧАТОВ
+    const btnChatMenu = document.getElementById('btn-chat-menu');
+    const chatDrawer = document.getElementById('chatDrawer');
+    const chatDrawerOverlay = document.getElementById('chatDrawerOverlay');
+    const btnCloseDrawer = document.getElementById('btn-close-drawer');
+
+    if (btnChatMenu) btnChatMenu.addEventListener('click', () => {
+        if (chatDrawerOverlay && chatDrawer) {
+            chatDrawerOverlay.style.display = 'block';
+            setTimeout(() => {
+                chatDrawerOverlay.classList.add('active');
+                chatDrawer.classList.add('active');
+            }, 10);
+        }
+    });
+
+    if (btnCloseDrawer) btnCloseDrawer.addEventListener('click', () => {
+        if (chatDrawerOverlay && chatDrawer) {
+            chatDrawerOverlay.classList.remove('active');
+            chatDrawer.classList.remove('active');
+            setTimeout(() => chatDrawerOverlay.style.display = 'none', 300);
+        }
+    });
+
+    // ПЕРЕКЛЮЧЕНИЕ ИИ / KEEPS
+    let activeRightView = 'ai';
+    if (btnToggleNotes && viewAi && viewNotes) {
+        btnToggleNotes.addEventListener('click', () => {
+            if (activeRightView === 'ai') {
+                activeRightView = 'notes';
+                viewAi.classList.remove('active');
+                viewNotes.classList.add('active');
+                if (notesIcon) notesIcon.textContent = 'smart_toy';
+            } else {
+                activeRightView = 'ai';
+                viewNotes.classList.remove('active');
+                viewAi.classList.add('active');
+                if (notesIcon) notesIcon.textContent = 'sticky_note_2';
+            }
+        });
+    }
+
+    // ПРОФИЛЬ
+    const profileBtn = document.getElementById('btn-profile-menu');
+    const profileModal = document.getElementById('profileModal');
+    const closeProfileBtn = document.getElementById('btn-close-profile');
+    if (profileBtn && profileModal) profileBtn.addEventListener('click', () => profileModal.style.display = 'flex');
+    if (closeProfileBtn && profileModal) closeProfileBtn.addEventListener('click', () => profileModal.style.display = 'none');
+
+    // КЛАВИАТУРА И КОД + закрепление символов
+    const ALL_CODING_SYMBOLS = [
+        '{', '}', '[', ']', '(', ')', '<', '>',
+        ';', ':', ',', '.', '?', '!',
+        '"', "'", '`', '\\', '/', '|',
+        '=', '+', '-', '*', '%', '_', '$', '#', '@', '&', '^', '~',
+        'Tab', '=>', '===', '!==', '&&', '||', '??', '...',
+        '/*', '*/', '//', '${', '[]', '{}', '()'
+    ];
+    const PINNED_KEY = 'oracle_notepad_pinned_symbols';
+    const MAX_PINNED = 10;
+
+    function getPinnedSymbols() {
+        try {
+            const arr = JSON.parse(localStorage.getItem(PINNED_KEY) || '[]');
+            return Array.isArray(arr) ? arr.filter(s => typeof s === 'string').slice(0, MAX_PINNED) : [];
+        } catch (e) { return []; }
+    }
+    function savePinnedSymbols(arr) {
+        localStorage.setItem(PINNED_KEY, JSON.stringify(arr.slice(0, MAX_PINNED)));
+    }
+    function pinSymbol(sym) {
+        let arr = getPinnedSymbols().filter(s => s !== sym);
+        arr.push(sym);
+        if (arr.length > MAX_PINNED) arr = arr.slice(arr.length - MAX_PINNED);
+        savePinnedSymbols(arr);
+        renderCodingKeyboard();
+        renderSymbolsModal();
+        showToast('Закреплено: ' + sym + ' (' + arr.length + '/' + MAX_PINNED + ')');
+    }
+    function unpinSymbol(sym) {
+        const arr = getPinnedSymbols().filter(s => s !== sym);
+        savePinnedSymbols(arr);
+        renderCodingKeyboard();
+        renderSymbolsModal();
+        showToast('Откреплено: ' + sym);
+    }
+    function insertCodingSymbol(key) {
+        if (!codeEditor) return;
+        insertAtCursor(codeEditor, key === 'Tab' ? '    ' : key);
+    }
+
+    let _symCtxTarget = null;
+    function hideSymbolsCtx() {
+        const m = document.getElementById('symbols-ctx-menu');
+        if (m) m.style.display = 'none';
+        _symCtxTarget = null;
+    }
+    function showSymbolsCtx(e, sym, isPinned) {
+        e.preventDefault();
+        e.stopPropagation();
+        _symCtxTarget = sym;
+        const m = document.getElementById('symbols-ctx-menu');
+        if (!m) return;
+        const pinBtn = document.getElementById('symbols-ctx-pin');
+        const unpinBtn = document.getElementById('symbols-ctx-unpin');
+        if (pinBtn) pinBtn.style.display = isPinned ? 'none' : 'block';
+        if (unpinBtn) unpinBtn.style.display = isPinned ? 'block' : 'none';
+        m.style.display = 'flex';
+        const x = Math.min(e.clientX || (e.touches && e.touches[0]?.clientX) || 0, window.innerWidth - 160);
+        const y = Math.min(e.clientY || (e.touches && e.touches[0]?.clientY) || 0, window.innerHeight - 100);
+        m.style.left = x + 'px';
+        m.style.top = y + 'px';
+    }
+
+    function bindSymLongPress(el, sym, isPinned) {
+        let timer = null;
+        el.addEventListener('contextmenu', (e) => showSymbolsCtx(e, sym, isPinned));
+        el.addEventListener('touchstart', (e) => {
+            timer = setTimeout(() => {
+                const t = e.touches[0];
+                showSymbolsCtx({ preventDefault(){}, stopPropagation(){}, clientX: t.clientX, clientY: t.clientY }, sym, isPinned);
+            }, 500);
+        }, { passive: true });
+        el.addEventListener('touchend', () => clearTimeout(timer));
+        el.addEventListener('touchmove', () => clearTimeout(timer));
+    }
+
+    function renderCodingKeyboard() {
+        if (!codingKeyboard) return;
+        codingKeyboard.innerHTML = '';
+        const pinned = getPinnedSymbols();
+        const base = pinned.length ? pinned : ['{', '}', '[', ']', '(', ')', ';', '"', '=', '<', '>', '/', '$', '_', 'Tab'];
+        base.forEach(key => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'key-btn';
+            btn.textContent = key;
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                insertCodingSymbol(key);
+            });
+            bindSymLongPress(btn, key, pinned.includes(key));
+            codingKeyboard.appendChild(btn);
+        });
+        const more = document.createElement('button');
+        more.type = 'button';
+        more.className = 'key-btn more-symbols-btn';
+        more.textContent = '⋯';
+        more.title = 'Все символы';
+        more.addEventListener('click', (e) => {
+            e.preventDefault();
+            openSymbolsModal();
+        });
+        codingKeyboard.appendChild(more);
+    }
+
+    function renderSymbolsModal() {
+        const allGrid = document.getElementById('symbols-all-grid');
+        const pinGrid = document.getElementById('symbols-pinned-grid');
+        const countEl = document.getElementById('symbols-pinned-count');
+        if (!allGrid || !pinGrid) return;
+        const pinned = getPinnedSymbols();
+        if (countEl) countEl.textContent = String(pinned.length);
+        allGrid.innerHTML = '';
+        ALL_CODING_SYMBOLS.forEach(sym => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'sym-btn' + (pinned.includes(sym) ? ' pinned-mark' : '');
+            b.textContent = sym;
+            b.addEventListener('click', () => {
+                insertCodingSymbol(sym);
+                hideSymbolsCtx();
+            });
+            bindSymLongPress(b, sym, pinned.includes(sym));
+            allGrid.appendChild(b);
+        });
+        pinGrid.innerHTML = '';
+        if (!pinned.length) {
+            pinGrid.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--on-surface-variant);padding:8px;">Нет закреплённых — ПКМ по символу → Закрепить</div>';
+        } else {
+            pinned.forEach(sym => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'sym-btn pinned-mark';
+                b.textContent = sym;
+                b.addEventListener('click', () => {
+                    insertCodingSymbol(sym);
+                    hideSymbolsCtx();
+                });
+                bindSymLongPress(b, sym, true);
+                pinGrid.appendChild(b);
+            });
+        }
+    }
+
+    function openSymbolsModal() {
+        renderSymbolsModal();
+        const m = document.getElementById('symbols-picker-modal');
+        if (m) m.style.display = 'flex';
+    }
+    function closeSymbolsModal() {
+        hideSymbolsCtx();
+        const m = document.getElementById('symbols-picker-modal');
+        if (m) m.style.display = 'none';
+    }
+
+    document.getElementById('btn-close-symbols-modal')?.addEventListener('click', closeSymbolsModal);
+    document.getElementById('symbols-picker-modal')?.addEventListener('click', (e) => {
+        if (e.target && e.target.id === 'symbols-picker-modal') closeSymbolsModal();
+    });
+    document.getElementById('symbols-ctx-pin')?.addEventListener('click', () => {
+        if (_symCtxTarget) pinSymbol(_symCtxTarget);
+        hideSymbolsCtx();
+    });
+    document.getElementById('symbols-ctx-unpin')?.addEventListener('click', () => {
+        if (_symCtxTarget) unpinSymbol(_symCtxTarget);
+        hideSymbolsCtx();
+    });
+    document.addEventListener('click', () => hideSymbolsCtx());
+
+    renderCodingKeyboard();
+
+    if (toggleKeyboard && codingKeyboard) {
+        toggleKeyboard.addEventListener('click', () => {
+            codingKeyboard.classList.toggle('active');
+            toggleKeyboard.classList.toggle('active');
+        });
+    }
+
+    function insertAtCursor(textarea, text) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const currentVal = textarea.value;
+        textarea.value = currentVal.substring(0, start) + text + currentVal.substring(end);
+        textarea.selectionStart = textarea.selectionEnd = start + text.length;
+        textarea.focus();
+        handleAutoSaveInput();
+    }
+
+    if (codeEditor) {
+        codeEditor.addEventListener('input', handleAutoSaveInput);
+    }
+    if (metaName) {
+        metaName.addEventListener('input', handleAutoSaveInput);
+    }
+    if (notesEditor) {
+        notesEditor.addEventListener('input', handleAutoSaveInput);
+    }
+
+    // ОБРАБОТЧИКИ: ПРИКРЕПЛЕНИЕ ФАЙЛА
+    if (btnAttach && attachFileInput) {
+        btnAttach.addEventListener('click', () => attachFileInput.click());
+        attachFileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                const names = files.map(f => f.name).join(', ');
+                if (oracleInput) {
+                    oracleInput.value += ` [Прикреплено: ${names}]`;
+                    oracleInput.dispatchEvent(new Event('input'));
+                }
+            }
+        });
+    }
+
+    // ОБРАБОТЧИКИ: ГОЛОСОВОЙ ВВОД (МИКРОФОН)
+    if (voiceBtn) {
+        voiceBtn.addEventListener('click', () => {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                if (window.showAlert) showAlert('Ваш браузер не поддерживает распознавание речи');
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'ru-RU';
+            recognition.interimResults = false;
+
+            voiceBtn.style.color = 'var(--accent-red, #ff5555)';
+
+            recognition.onstart = () => {
+                showToast('Идет запись...');
+            };
+
+            recognition.onresult = (e) => {
+                const transcript = e.results[0][0].transcript;
+                if (oracleInput) {
+                    oracleInput.value += (oracleInput.value ? ' ' : '') + transcript;
+                    oracleInput.dispatchEvent(new Event('input'));
+                }
+            };
+
+            recognition.onerror = () => {
+                voiceBtn.style.color = '';
+            };
+
+            recognition.onend = () => {
+                voiceBtn.style.color = '';
+            };
+
+            recognition.start();
+        });
+    }
+
+    // ИИ ОРАКУЛ & ДИНАМИЧЕСКАЯ КНОПКА ОТПРАВКИ
+    if (oracleInput && sendBtn) {
+        oracleInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            
+            if (this.value.trim().length > 0) {
+                sendBtn.classList.add('active');
+            } else {
+                sendBtn.classList.remove('active');
+            }
+        });
+
+        const sendToOracle = () => {
+            const text = oracleInput.value.trim();
+            if (!text) return;
+            if (welcomeBlock) welcomeBlock.classList.add('hidden');
+            appendBubble(escapeHtml(text), 'user');
+            oracleInput.value = '';
+            oracleInput.style.height = 'auto';
+            sendBtn.classList.remove('active');
+            dismissSmartTip(true);
+
+            const model = window.__notepadModel || 'intify-2.5.3-flash';
+            const mode = window.__notepadAiMode || 'dialog';
+            setTimeout(() => {
+                let reply;
+                if (model === 'intify-2.5.3-flash') {
+                    if (mode === 'code' || /код|function|const |let |class |html|css|js/i.test(text)) {
+                        reply = `<strong>Intify 2.5.3 Flash</strong> · coding<br><pre style="margin:8px 0 0;padding:10px;background:rgba(0,0,0,0.35);border-radius:10px;font-size:12px;overflow:auto;">// draft
+// ${escapeHtml(text.slice(0, 80))}
+console.log('Intify ready');</pre><span style="font-size:12px;opacity:0.75;">Можно доработать в редакторе или сохранить в AI Studio.</span>`;
+                        maybeOfferStudioSave(text);
+                    } else {
+                        reply = `<strong>Intify 2.5.3 Flash</strong><br>Принято: «${escapeHtml(text.slice(0, 120))}». Уточните задачу по коду — сгенерирую фрагмент.`;
+                    }
+                } else if (model === 'worldpack') {
+                    reply = `<strong>Worldpack AI</strong><br>Могу предложить структуру World / Room под ваш запрос.`;
+                } else {
+                    reply = `<strong>Oracle Main</strong><br>Диалог принят. Core Node 2.6 Notepad на связи.`;
+                }
+                if (mode === 'note') {
+                    reply = `<strong>Заметка</strong><br>Можно дописать детали в Keeps или здесь: «${escapeHtml(text.slice(0, 100))}».`;
+                }
+                appendBubble(reply, 'ai');
+            }, 500);
+        };
+
+        sendBtn.addEventListener('click', sendToOracle);
+        oracleInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { 
+                e.preventDefault(); 
+                sendToOracle(); 
+            }
+        });
+    }
+
+    function appendBubble(htmlContent, sender) {
+        if (!chatFlow) return;
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${sender === 'user' ? 'user-bubble' : 'ai-bubble'}`;
+        bubble.innerHTML = htmlContent;
+        chatFlow.appendChild(bubble);
+        chatFlow.scrollTop = chatFlow.scrollHeight;
+    }
+
+    if (btnSettings && exportMenu) {
+        btnSettings.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exportMenu.classList.toggle('active');
+        });
+        document.addEventListener('click', () => exportMenu.classList.remove('active'));
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    window.exportData = function(format) {
+        const activeProj = projects.find(p => p.id === activeProjectId) || projects[0];
+        const data = {
+            projectName: activeProj.name,
+            metaName: metaName ? metaName.value : '',
+            code: codeEditor ? codeEditor.value : '',
+            notes: notesEditor ? notesEditor.innerText : '',
+            worlds: worlds
+        };
+
+        let content = '';
+        let mimeType = 'text/plain';
+        let extension = 'txt';
+
+        if (format === 'json' || format === 'worldpack') {
+            content = JSON.stringify(data, null, 2);
+            mimeType = 'application/json';
+            extension = format === 'worldpack' ? 'worldpack' : 'json';
+        } else {
+            content = `Проект: ${data.projectName}\nАвтор: ${data.metaName}\n\n--- КОД ---\n${data.code}\n\n--- ЗАМЕТКИ ---\n${data.notes}`;
+        }
+
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${activeProj.name.toLowerCase().replace(/\s+/g, '_')}.${extension}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    loadState();
+
+    // ===== CORE NODE BRIDGE =====
+
+    function showCoreChatsErrorCard(reason) {
+        const list = document.getElementById('chatHistoryList');
+        if (!list) return;
+        list.innerHTML = `
+            <div class="core-chats-error-card" role="alert">
+                <span class="material-symbols-rounded core-chats-error-icon">error</span>
+                <div class="core-chats-error-title">Чаты не удалось отобразить</div>
+                <div class="core-chats-error-text">Попробуйте перезагрузить страницу!</div>
+                ${reason ? `<div class="core-chats-error-detail">${escapeHtml(String(reason))}</div>` : ''}
+                <button type="button" class="action-btn outline core-chats-reload-btn" onclick="location.reload()">
+                    <span class="material-symbols-rounded">refresh</span> Перезагрузить
+                </button>
+            </div>`;
+        const el = document.getElementById('bridge-status');
+        if (el) {
+            el.className = 'bridge-status err';
+            el.textContent = 'Ошибка загрузки чатов';
+        }
+    }
+
+    /** Консоль: __testCoreChatsError() — показать карточку ошибки загрузки чатов */
+    window.__testCoreChatsError = function(msg) {
+        showCoreChatsErrorCard(msg || 'Тест: симуляция сбоя чтения oracle_chat_sessions');
+        console.info('[Notepad] Карточка ошибки чатов. Сброс: location.reload()');
+        return true;
+    };
+
+    const CORE_CHATS_KEY = 'oracle_chat_sessions';
+    const CORE_CURRENT_KEY = 'oracle_current_session';
+    const NP_SETTINGS_KEY = 'oracle_notepad_settings';
+
+    function loadNpSettings() {
+        try {
+            return JSON.parse(localStorage.getItem(NP_SETTINGS_KEY) || '{}') || {};
+        } catch (e) { return {}; }
+    }
+    function saveNpSettings(partial) {
+        const s = Object.assign(loadNpSettings(), partial);
+        localStorage.setItem(NP_SETTINGS_KEY, JSON.stringify(s));
+        applyNpSettings(s);
+        return s;
+    }
+    function applyNpSettings(s) {
+        s = s || loadNpSettings();
+        if (autoSaveToggle) autoSaveToggle.checked = s.autoSave !== false;
+        const as = document.getElementById('settings-auto-save');
+        if (as) as.checked = s.autoSave !== false;
+        const sy = document.getElementById('settings-auto-sync');
+        if (sy) sy.checked = s.autoSync !== false;
+        const cc = document.getElementById('settings-compact-chat');
+        if (cc) cc.checked = !!s.compactChat;
+        document.body.classList.toggle('compact-chat', !!s.compactChat);
+        const link = document.getElementById('core-node-open-link');
+        if (link) link.setAttribute('href', 'https://oracle-ai-pro.github.io/oracle');
+    }
+
+    function readCoreNodeChats() {
+        try {
+            const raw = localStorage.getItem(CORE_CHATS_KEY);
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            if (!data || typeof data !== 'object' || Array.isArray(data)) {
+                throw new Error('Неверный формат oracle_chat_sessions');
+            }
+            return data;
+        } catch (e) {
+            console.error('[Notepad] Core chats read failed', e);
+            window.__lastCoreChatsError = e;
+            return { __error: true, message: e && e.message ? e.message : 'Ошибка чтения' };
+        }
+    }
+
+    function updateBridgeStatus() {
+        const el = document.getElementById('bridge-status');
+        const keyEl = document.getElementById('core-bridge-key');
+        if (keyEl) keyEl.textContent = CORE_CHATS_KEY;
+        if (!el) return;
+        const chats = readCoreNodeChats();
+        if (chats && chats.__error) {
+            el.className = 'bridge-status err';
+            el.textContent = 'Ошибка загрузки чатов';
+            return;
+        }
+        if (!chats) {
+            el.className = 'bridge-status warn';
+            el.textContent = 'Чаты Core Node не найдены в этом браузере';
+            return;
+        }
+        const n = Object.keys(chats).filter(k => k !== '__error' && k !== 'message').length;
+        el.className = 'bridge-status ok';
+        el.textContent = 'Связь OK · чатов: ' + n;
+    }
+
+    function stripHtmlToText(html) {
+        const d = document.createElement('div');
+        d.innerHTML = html || '';
+        return d.textContent || d.innerText || '';
+    }
+
+    function renderCoreChatHistory(activeId) {
+        const list = document.getElementById('chatHistoryList');
+        if (!list) return;
+        const chats = readCoreNodeChats();
+        list.innerHTML = '';
+        if (chats && chats.__error) {
+            showCoreChatsErrorCard(chats.message || 'Не удалось прочитать чаты');
+            return;
+        }
+        if (!chats || !Object.keys(chats).length) {
+            list.innerHTML = '<div class="chat-item muted"><span class="material-symbols-rounded">info</span><span>Нет чатов — откройте Core Node и создайте диалог</span></div>';
+            updateBridgeStatus();
+            return;
+        }
+        const cur = activeId || localStorage.getItem(CORE_CURRENT_KEY);
+        Object.keys(chats).forEach(id => {
+            if (id === '__error' || id === 'message') return;
+            const item = document.createElement('div');
+            item.className = 'chat-item' + (id === cur ? ' active' : '');
+            item.dataset.sessionId = id;
+            const title = (chats[id] && chats[id].title) || 'Без названия';
+            item.innerHTML = `<span class="material-symbols-rounded">chat_bubble</span><span class="chat-item-title">${escapeHtml(title)}</span>`;
+            item.addEventListener('click', () => openCoreChatInNotepad(id));
+            list.appendChild(item);
+        });
+        updateBridgeStatus();
+    }
+
+    function openCoreChatInNotepad(sessionId) {
+        const chats = readCoreNodeChats();
+        if (!chats || chats.__error || !chats[sessionId]) {
+            if (chats && chats.__error) showCoreChatsErrorCard(chats.message);
+            else showToast('Чат не найден');
+            return;
+        }
+        const session = chats[sessionId];
+        // switch to oracle panel on mobile
+        document.querySelectorAll('.mobile-nav-item').forEach(i => {
+            i.classList.toggle('active', i.getAttribute('data-target') === 'panel-oracle');
+        });
+        panels.forEach(p => {
+            if (!p) return;
+            p.classList.toggle('mobile-active', p.id === 'panel-oracle');
+        });
+        if (viewNotes) viewNotes.classList.remove('active');
+        if (viewAi) viewAi.classList.add('active');
+        if (notesIcon) notesIcon.textContent = 'sticky_note_2';
+        activeRightView = 'ai';
+
+        if (welcomeBlock) welcomeBlock.classList.add('hidden');
+        if (chatFlow) {
+            chatFlow.innerHTML = '';
+            // session.html is Core Node markup — preserve Markdown/code windows for AI
+            const tmp = document.createElement('div');
+            tmp.innerHTML = session.html || '';
+            const msgs = tmp.querySelectorAll('.msg, .user-msg, .ai-msg, .chat-bubble');
+            if (msgs.length) {
+                msgs.forEach(m => {
+                    if (m.classList.contains('ai-api-error')) return; // skip error cards or adapt later
+                    const isUser = m.classList.contains('user-msg') || m.classList.contains('user-bubble');
+                    if (isUser) {
+                        const text = (m.querySelector('.bubble-text')?.textContent) || m.textContent || '';
+                        if (text.trim()) appendBubble(escapeHtml(text.trim()), 'user');
+                        return;
+                    }
+                    // AI: prefer rich .ai-md-body HTML
+                    const md = m.querySelector('.ai-md-body');
+                    if (md) {
+                        appendBubble(sanitizeCoreAiHtml(md.innerHTML), 'ai');
+                        return;
+                    }
+                    // fallback: structured text without icon ligatures
+                    const clone = m.cloneNode(true);
+                    clone.querySelectorAll('.material-symbols-rounded, .ai-code-copy, .ai-actions, .bubble-actions').forEach(el => el.remove());
+                    const text = (clone.textContent || '').replace(/\s+/g, ' ').trim();
+                    if (text) appendBubble(escapeHtml(text), 'ai');
+                });
+            } else if (session.html) {
+                appendBubble(escapeHtml(stripHtmlToText(session.html).slice(0, 4000)), 'ai');
+            } else {
+                appendBubble('Пустой чат из Core Node', 'ai');
+            }
+        }
+        // highlight
+        document.querySelectorAll('#chatHistoryList .chat-item').forEach(el => {
+            el.classList.toggle('active', el.dataset.sessionId === sessionId);
+        });
+        // close drawer
+        if (chatDrawerOverlay && chatDrawer) {
+            chatDrawerOverlay.classList.remove('active');
+            chatDrawer.classList.remove('active');
+            setTimeout(() => { chatDrawerOverlay.style.display = 'none'; }, 300);
+        }
+        showToast('Чат: ' + (session.title || 'Core Node'));
+    }
+
+    function syncFromCoreNode(showMsg = true) {
+        updateBridgeStatus();
+        renderCoreChatHistory();
+        if (showMsg) {
+            const chats = readCoreNodeChats();
+            const n = chats ? Object.keys(chats).length : 0;
+            showToast(n ? ('Синхронизировано: ' + n + ' чат(ов)') : 'Чаты Core Node не найдены');
+        }
+    }
+
+    const btnSync = document.getElementById('btn-sync-core-node');
+    if (btnSync) btnSync.addEventListener('click', () => syncFromCoreNode(true));
+
+    // Settings modal
+    const settingsModal = document.getElementById('settingsModal');
+    const btnOpenSettings = document.getElementById('btn-open-settings-panel');
+    const btnCloseSettings = document.getElementById('btn-close-settings-modal');
+    const btnSettingsSave = document.getElementById('btn-settings-save');
+    if (btnOpenSettings && settingsModal) {
+        btnOpenSettings.addEventListener('click', () => {
+            applyNpSettings();
+            settingsModal.style.display = 'flex';
+        });
+    }
+    if (btnCloseSettings && settingsModal) {
+        btnCloseSettings.addEventListener('click', () => settingsModal.style.display = 'none');
+    }
+    if (btnSettingsSave) {
+        btnSettingsSave.addEventListener('click', () => {
+            const autoSave = document.getElementById('settings-auto-save')?.checked !== false;
+            const autoSync = document.getElementById('settings-auto-sync')?.checked !== false;
+            const compactChat = !!document.getElementById('settings-compact-chat')?.checked;
+            saveNpSettings({ autoSave, autoSync, compactChat });
+            if (autoSaveToggle) autoSaveToggle.checked = autoSave;
+            settingsModal.style.display = 'none';
+            showToast('Настройки сохранены');
+        });
+    }
+    // mirror auto-save toggle from export menu
+    if (autoSaveToggle) {
+        autoSaveToggle.addEventListener('change', () => {
+            saveNpSettings({ autoSave: autoSaveToggle.checked });
+        });
+    }
+
+    applyNpSettings();
+
+    // ===== THEME SWITCHER =====
+    const THEME_KEY = 'oracle_notepad_theme';
+    function getNotepadTheme() {
+        const t = localStorage.getItem(THEME_KEY) || 'dark';
+        return ['dark', 'light', 'true-black'].includes(t) ? t : 'dark';
+    }
+    function applyNotepadTheme(theme) {
+        const t = ['dark', 'light', 'true-black'].includes(theme) ? theme : 'dark';
+        document.body.classList.remove('dark-theme', 'light-theme', 'true-black-theme');
+        if (t === 'light') document.body.classList.add('light-theme');
+        else if (t === 'true-black') document.body.classList.add('true-black-theme');
+        else document.body.classList.add('dark-theme');
+        localStorage.setItem(THEME_KEY, t);
+        document.querySelectorAll('.theme-opt').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.theme === t);
+        });
+        const icon = document.getElementById('theme-quick-icon');
+        if (icon) {
+            icon.textContent = t === 'light' ? 'light_mode' : (t === 'true-black' ? 'contrast' : 'dark_mode');
+        }
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) {
+            meta.setAttribute('content', t === 'light' ? '#f4f5fa' : '#0a0b10');
+        }
+    }
+    function cycleNotepadTheme() {
+        const order = ['dark', 'light', 'true-black'];
+        const cur = getNotepadTheme();
+        const next = order[(order.indexOf(cur) + 1) % order.length];
+        applyNotepadTheme(next);
+        const labels = { dark: 'Тёмная', light: 'Светлая', 'true-black': 'True Black' };
+        showToast('Тема: ' + (labels[next] || next));
+    }
+    document.querySelectorAll('.theme-opt').forEach(btn => {
+        btn.addEventListener('click', () => applyNotepadTheme(btn.dataset.theme));
+    });
+    document.getElementById('btn-theme-quick')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cycleNotepadTheme();
+    });
+    applyNotepadTheme(getNotepadTheme());
+
+    updateBridgeStatus();
+    if (loadNpSettings().autoSync !== false) {
+        syncFromCoreNode(false);
+    }
+
+    // ===== SMART TIP + MODEL + AI STUDIO =====
+    const TIP_KEY = 'oracle_notepad_tip_dismissed_2_6_1';
+    const MODEL_KEY = 'oracle_notepad_model';
+    const STUDIO_KEY = 'oracle_notepad_ai_studio';
+    const TIP_VARIANTS = [
+        'Core Node 2.6 стал умнее — хотите что-то сгенерировать? Просто напишите',
+        'Core Node 2.6 стал умнее — хотите добавить заметку о будущих деталях? Просто напишите',
+        'Intify 2.5.3 Flash готов к коду — опишите задачу над полем ввода'
+    ];
+
+    function dismissSmartTip(persist) {
+        const tip = document.getElementById('oracle-smart-tip');
+        if (tip) tip.classList.add('hidden');
+        if (persist) localStorage.setItem(TIP_KEY, '1');
+    }
+    function showSmartTip() {
+        const tip = document.getElementById('oracle-smart-tip');
+        const text = document.getElementById('oracle-smart-tip-text');
+        if (!tip || localStorage.getItem(TIP_KEY) === '1') {
+            tip?.classList.add('hidden');
+            return;
+        }
+        if (text) text.textContent = TIP_VARIANTS[Math.floor(Math.random() * TIP_VARIANTS.length)];
+        tip.classList.remove('hidden');
+    }
+    document.getElementById('oracle-smart-tip-close')?.addEventListener('click', () => dismissSmartTip(true));
+    showSmartTip();
+
+    // Model picker
+    window.__notepadModel = localStorage.getItem(MODEL_KEY) || 'intify-2.5.3-flash';
+    window.__notepadAiMode = 'dialog';
+    const modelLabels = {
+        'intify-2.5.3-flash': 'Intify 2.5.3 Flash',
+        'oracle-main': 'Oracle Main',
+        'worldpack': 'Worldpack AI'
+    };
+    function refreshModelChip() {
+        const lab = document.getElementById('model-chip-label');
+        if (lab) lab.textContent = modelLabels[window.__notepadModel] || 'Intify 2.5.3 Flash';
+        document.querySelectorAll('.model-option').forEach(o => {
+            o.classList.toggle('active', o.dataset.model === window.__notepadModel);
+        });
+        if (oracleInput) {
+            oracleInput.placeholder = window.__notepadModel === 'intify-2.5.3-flash'
+                ? 'Спросите Intify 2.5.3 Flash…'
+                : 'Ask...';
+        }
+    }
+    document.getElementById('model-chip')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const p = document.getElementById('model-picker');
+        if (p) p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+    });
+    document.querySelectorAll('.model-option').forEach(o => {
+        o.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.__notepadModel = o.dataset.model;
+            localStorage.setItem(MODEL_KEY, window.__notepadModel);
+            refreshModelChip();
+            document.getElementById('model-picker').style.display = 'none';
+            showToast('Модель: ' + (modelLabels[window.__notepadModel] || ''));
+        });
+    });
+    document.addEventListener('click', () => {
+        const p = document.getElementById('model-picker');
+        if (p) p.style.display = 'none';
+    });
+    refreshModelChip();
+
+    // Mode toggle cycles dialog / code / note — updates tip text flavor
+    const modeToggle = document.getElementById('mode-toggle');
+    const modeLabel = document.getElementById('mode-label');
+    const modes = [
+        { id: 'dialog', label: 'Диалог' },
+        { id: 'code', label: 'Код' },
+        { id: 'note', label: 'Заметка' }
+    ];
+    let modeIdx = 0;
+    if (modeToggle) {
+        modeToggle.addEventListener('click', () => {
+            modeIdx = (modeIdx + 1) % modes.length;
+            window.__notepadAiMode = modes[modeIdx].id;
+            if (modeLabel) modeLabel.textContent = modes[modeIdx].label;
+            modeToggle.classList.toggle('agent-active', modes[modeIdx].id !== 'dialog');
+            const tipText = document.getElementById('oracle-smart-tip-text');
+            if (tipText && localStorage.getItem(TIP_KEY) !== '1') {
+                if (modes[modeIdx].id === 'note') {
+                    tipText.textContent = 'Core Node 2.6 стал умнее — хотите добавить заметку о будущих деталях? Просто напишите';
+                } else if (modes[modeIdx].id === 'code') {
+                    tipText.textContent = 'Intify 2.5.3 Flash · режим кода — опишите, что сгенерировать';
+                } else {
+                    tipText.textContent = TIP_VARIANTS[0];
+                }
+                document.getElementById('oracle-smart-tip')?.classList.remove('hidden');
+            }
+        });
+    }
+
+    // AI Studio
+    function loadStudioProjects() {
+        try { return JSON.parse(localStorage.getItem(STUDIO_KEY) || '[]') || []; }
+        catch (e) { return []; }
+    }
+    function saveStudioProjects(list) {
+        localStorage.setItem(STUDIO_KEY, JSON.stringify(list));
+    }
+    function renderAiStudio() {
+        const list = document.getElementById('ai-studio-list');
+        const hint = document.getElementById('studio-empty-hint');
+        if (!list) return;
+        const projects = loadStudioProjects();
+        list.innerHTML = '';
+        if (hint) hint.style.display = projects.length ? 'none' : 'block';
+        projects.forEach((p, i) => {
+            const card = document.createElement('div');
+            card.className = 'studio-card';
+            card.innerHTML = `
+                <div class="studio-card-title">${escapeHtml(p.title || 'AI Project')}</div>
+                <div class="studio-card-meta">${escapeHtml(p.model || 'Intify 2.5.3 Flash')} · ${new Date(p.ts || Date.now()).toLocaleString('ru-RU')}</div>
+                <div class="studio-card-actions">
+                    <button type="button" class="primary" data-act="open" data-i="${i}">В редактор</button>
+                    <button type="button" data-act="chat" data-i="${i}">В чат</button>
+                    <button type="button" data-act="del" data-i="${i}">Удалить</button>
+                </div>`;
+            list.appendChild(card);
+        });
+        list.querySelectorAll('button[data-act]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const i = Number(btn.dataset.i);
+                const act = btn.dataset.act;
+                const projects = loadStudioProjects();
+                const p = projects[i];
+                if (!p) return;
+                if (act === 'del') {
+                    projects.splice(i, 1);
+                    saveStudioProjects(projects);
+                    renderAiStudio();
+                    showToast('Удалено из AI Studio');
+                } else if (act === 'open') {
+                    if (codeEditor) {
+                        codeEditor.value = p.code || '';
+                        handleAutoSaveInput();
+                    }
+                    document.getElementById('aiStudioModal').style.display = 'none';
+                    document.querySelectorAll('.mobile-nav-item').forEach(el => {
+                        el.classList.toggle('active', el.getAttribute('data-target') === 'panel-coding');
+                    });
+                    panels.forEach(panel => {
+                        if (panel) panel.classList.toggle('mobile-active', panel.id === 'panel-coding');
+                    });
+                    showToast('Открыто в кодинге');
+                } else if (act === 'chat') {
+                    if (welcomeBlock) welcomeBlock.classList.add('hidden');
+                    appendBubble(escapeHtml((p.title || '') + '\n' + (p.prompt || '')), 'user');
+                    appendBubble(`<strong>AI Studio</strong><br>Проект «${escapeHtml(p.title || '')}» загружен в контекст.`, 'ai');
+                    document.getElementById('aiStudioModal').style.display = 'none';
+                }
+            });
+        });
+    }
+    function maybeOfferStudioSave(promptText) {
+        // soft: auto-add draft to studio once per session after coding reply
+        if (window.__studioAutoAdded) return;
+        window.__studioAutoAdded = true;
+        const list = loadStudioProjects();
+        list.unshift({
+            id: 'ai_' + Date.now(),
+            title: 'Draft: ' + (promptText || 'code').slice(0, 40),
+            prompt: promptText,
+            code: '// generated draft\nconsole.log("Intify 2.5.3 Flash");\n',
+            model: 'Intify 2.5.3 Flash',
+            ts: Date.now()
+        });
+        saveStudioProjects(list.slice(0, 40));
+    }
+    document.getElementById('btn-open-ai-studio')?.addEventListener('click', () => {
+        renderAiStudio();
+        document.getElementById('aiStudioModal').style.display = 'flex';
+    });
+    document.getElementById('btn-close-ai-studio')?.addEventListener('click', () => {
+        document.getElementById('aiStudioModal').style.display = 'none';
+    });
+    document.getElementById('btn-studio-new')?.addEventListener('click', () => {
+        showInput('Новый AI-проект', 'Название:', 'Intify draft', (name) => {
+            if (!name) return;
+            const list = loadStudioProjects();
+            list.unshift({
+                id: 'ai_' + Date.now(),
+                title: name,
+                prompt: '',
+                code: codeEditor ? codeEditor.value : '',
+                model: modelLabels[window.__notepadModel] || 'Intify 2.5.3 Flash',
+                ts: Date.now()
+            });
+            saveStudioProjects(list);
+            renderAiStudio();
+            showToast('Проект в AI Studio');
+        });
+    });
+
+
+    // Live sync when Core Node updates localStorage (same origin)
+    window.addEventListener('storage', (e) => {
+        if (e.key === CORE_CHATS_KEY || e.key === CORE_CURRENT_KEY) {
+            updateBridgeStatus();
+            renderCoreChatHistory();
+        }
+    });
+    // Also re-sync when drawer opens
+    if (btnChatMenu) {
+        btnChatMenu.addEventListener('click', () => {
+            setTimeout(() => syncFromCoreNode(false), 50);
+        });
+    }
+
+
+});
+
+
+// ===== Shared pack with Core Node (same localStorage keys) =====
+window.exportNotepadProjectsPack = function() {
+    let projects = [];
+    try { projects = JSON.parse(localStorage.getItem('oracle_projects_list') || '[]') || []; } catch(e) {}
+    const pack = {
+        version: 1,
+        app: 'oracle-notepad',
+        site: 'https://oracle-ai-pro.github.io/oracle-notepad',
+        exportedAt: Date.now(),
+        activeId: localStorage.getItem('oracle_active_project_id'),
+        projects: projects.map(p => {
+            let state = {};
+            try { state = JSON.parse(localStorage.getItem('oracle_notepad_storage_' + p.id) || '{}') || {}; } catch(e) {}
+            return { id: p.id, name: p.name || p.id, updatedAt: p.updatedAt || null, state };
+        }),
+        draft: localStorage.getItem('oracle_notepad_code') || ''
+    };
+    return pack;
+};
+window.downloadNotepadProjectsPack = function() {
+    const pack = window.exportNotepadProjectsPack();
+    const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'oracle-notepad-projects.json';
+    a.click();
+};
+console.info('[Notepad] Shared keys with Core Node: oracle_projects_list, oracle_notepad_storage_*, oracle_active_project_id');
+
+</script>
 </body>
 </html>
