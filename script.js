@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const APP_VERSION = '2.6';
+    const APP_VERSION = '2.6.1';
     const whatsNewModal = document.getElementById('whatsNewModal');
     const btnCloseWhatsNew = document.getElementById('btn-close-whats-new');
     const savedVersion = localStorage.getItem('oracle_notepad_version');
@@ -917,10 +917,39 @@ document.addEventListener('DOMContentLoaded', () => {
             oracleInput.value = '';
             oracleInput.style.height = 'auto';
             sendBtn.classList.remove('active');
+            dismissSmartTip(true);
 
+            const model = window.__notepadModel || 'intify-2.5.3-flash';
+            const mode = window.__notepadAiMode || 'dialog';
+            const think = document.createElement('div');
+            think.className = 'chat-bubble ai-bubble thinking';
+            think.innerHTML = '<div class="ai-thinking-dots"><span></span><span></span><span></span></div>';
+            if (chatFlow) {
+                chatFlow.appendChild(think);
+                chatFlow.scrollTop = chatFlow.scrollHeight;
+            }
             setTimeout(() => {
-                appendBubble(`💬 <strong>Оракул:</strong> Принято! Ответ сгенерирован.`, 'ai');
-            }, 600);
+                try { think.remove(); } catch (e) {}
+                let reply;
+                if (model === 'intify-2.5.3-flash') {
+                    if (mode === 'code' || /код|function|const |let |class |html|css|js/i.test(text)) {
+                        reply = `<strong>Intify 2.5.3 Flash</strong> · coding<br><pre style="margin:8px 0 0;padding:10px;background:rgba(0,0,0,0.35);border-radius:10px;font-size:12px;overflow:auto;">// draft
+// ${escapeHtml(text.slice(0, 80))}
+console.log('Intify ready');</pre><span style="font-size:12px;opacity:0.75;">Можно доработать в редакторе или сохранить в AI Studio.</span>`;
+                        maybeOfferStudioSave(text);
+                    } else {
+                        reply = `<strong>Intify 2.5.3 Flash</strong><br>Принято: «${escapeHtml(text.slice(0, 120))}». Уточните задачу по коду — сгенерирую фрагмент.`;
+                    }
+                } else if (model === 'worldpack') {
+                    reply = `<strong>Worldpack AI</strong><br>Могу предложить структуру World / Room под ваш запрос.`;
+                } else {
+                    reply = `<strong>Oracle Main</strong><br>Диалог принят. Core Node 2.6 Notepad на связи.`;
+                }
+                if (mode === 'note') {
+                    reply = `<strong>Заметка</strong><br>Можно дописать детали в Keeps или здесь: «${escapeHtml(text.slice(0, 100))}».`;
+                }
+                appendBubble(reply, 'ai');
+            }, 500);
         };
 
         sendBtn.addEventListener('click', sendToOracle);
@@ -1143,15 +1172,30 @@ document.addEventListener('DOMContentLoaded', () => {
         if (welcomeBlock) welcomeBlock.classList.add('hidden');
         if (chatFlow) {
             chatFlow.innerHTML = '';
-            // session.html is Core Node markup — extract readable lines
+            // session.html is Core Node markup — preserve Markdown/code windows for AI
             const tmp = document.createElement('div');
             tmp.innerHTML = session.html || '';
             const msgs = tmp.querySelectorAll('.msg, .user-msg, .ai-msg, .chat-bubble');
             if (msgs.length) {
                 msgs.forEach(m => {
+                    if (m.classList.contains('ai-api-error')) return; // skip error cards or adapt later
                     const isUser = m.classList.contains('user-msg') || m.classList.contains('user-bubble');
-                    const text = (m.querySelector('.bubble-text')?.textContent) || m.textContent || '';
-                    if (text.trim()) appendBubble(escapeHtml(text.trim()), isUser ? 'user' : 'ai');
+                    if (isUser) {
+                        const text = (m.querySelector('.bubble-text')?.textContent) || m.textContent || '';
+                        if (text.trim()) appendBubble(escapeHtml(text.trim()), 'user');
+                        return;
+                    }
+                    // AI: prefer rich .ai-md-body HTML
+                    const md = m.querySelector('.ai-md-body');
+                    if (md) {
+                        appendBubble(sanitizeCoreAiHtml(md.innerHTML), 'ai');
+                        return;
+                    }
+                    // fallback: structured text without icon ligatures
+                    const clone = m.cloneNode(true);
+                    clone.querySelectorAll('.material-symbols-rounded, .ai-code-copy, .ai-actions, .bubble-actions').forEach(el => el.remove());
+                    const text = (clone.textContent || '').replace(/\s+/g, ' ').trim();
+                    if (text) appendBubble(escapeHtml(text), 'ai');
                 });
             } else if (session.html) {
                 appendBubble(escapeHtml(stripHtmlToText(session.html).slice(0, 4000)), 'ai');
@@ -1218,10 +1262,254 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     applyNpSettings();
+
+    // ===== THEME SWITCHER =====
+    const THEME_KEY = 'oracle_notepad_theme';
+    function getNotepadTheme() {
+        const t = localStorage.getItem(THEME_KEY) || 'dark';
+        return ['dark', 'light', 'true-black'].includes(t) ? t : 'dark';
+    }
+    function applyNotepadTheme(theme) {
+        const t = ['dark', 'light', 'true-black'].includes(theme) ? theme : 'dark';
+        document.body.classList.remove('dark-theme', 'light-theme', 'true-black-theme');
+        if (t === 'light') document.body.classList.add('light-theme');
+        else if (t === 'true-black') document.body.classList.add('true-black-theme');
+        else document.body.classList.add('dark-theme');
+        localStorage.setItem(THEME_KEY, t);
+        document.querySelectorAll('.theme-opt').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.theme === t);
+        });
+        const icon = document.getElementById('theme-quick-icon');
+        if (icon) {
+            icon.textContent = t === 'light' ? 'light_mode' : (t === 'true-black' ? 'contrast' : 'dark_mode');
+        }
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) {
+            meta.setAttribute('content', t === 'light' ? '#f4f5fa' : '#0a0b10');
+        }
+    }
+    function cycleNotepadTheme() {
+        const order = ['dark', 'light', 'true-black'];
+        const cur = getNotepadTheme();
+        const next = order[(order.indexOf(cur) + 1) % order.length];
+        applyNotepadTheme(next);
+        const labels = { dark: 'Тёмная', light: 'Светлая', 'true-black': 'True Black' };
+        showToast('Тема: ' + (labels[next] || next));
+    }
+    document.querySelectorAll('.theme-opt').forEach(btn => {
+        btn.addEventListener('click', () => applyNotepadTheme(btn.dataset.theme));
+    });
+    document.getElementById('btn-theme-quick')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cycleNotepadTheme();
+    });
+    applyNotepadTheme(getNotepadTheme());
+
     updateBridgeStatus();
     if (loadNpSettings().autoSync !== false) {
         syncFromCoreNode(false);
     }
+
+    // ===== SMART TIP + MODEL + AI STUDIO =====
+    const TIP_KEY = 'oracle_notepad_tip_dismissed_2_6_1';
+    const MODEL_KEY = 'oracle_notepad_model';
+    const STUDIO_KEY = 'oracle_notepad_ai_studio';
+    const TIP_VARIANTS = [
+        'Core Node 2.6 стал умнее — хотите что-то сгенерировать? Просто напишите',
+        'Core Node 2.6 стал умнее — хотите добавить заметку о будущих деталях? Просто напишите',
+        'Intify 2.5.3 Flash готов к коду — опишите задачу над полем ввода'
+    ];
+
+    function dismissSmartTip(persist) {
+        const tip = document.getElementById('oracle-smart-tip');
+        if (tip) tip.classList.add('hidden');
+        if (persist) localStorage.setItem(TIP_KEY, '1');
+    }
+    function showSmartTip() {
+        const tip = document.getElementById('oracle-smart-tip');
+        const text = document.getElementById('oracle-smart-tip-text');
+        if (!tip || localStorage.getItem(TIP_KEY) === '1') {
+            tip?.classList.add('hidden');
+            return;
+        }
+        if (text) text.textContent = TIP_VARIANTS[Math.floor(Math.random() * TIP_VARIANTS.length)];
+        tip.classList.remove('hidden');
+    }
+    document.getElementById('oracle-smart-tip-close')?.addEventListener('click', () => dismissSmartTip(true));
+    showSmartTip();
+
+    // Model picker
+    window.__notepadModel = localStorage.getItem(MODEL_KEY) || 'intify-2.5.3-flash';
+    window.__notepadAiMode = 'dialog';
+    const modelLabels = {
+        'intify-2.5.3-flash': 'Intify 2.5.3 Flash',
+        'oracle-main': 'Oracle Main',
+        'worldpack': 'Worldpack AI'
+    };
+    function refreshModelChip() {
+        const lab = document.getElementById('model-chip-label');
+        if (lab) lab.textContent = modelLabels[window.__notepadModel] || 'Intify 2.5.3 Flash';
+        document.querySelectorAll('.model-option').forEach(o => {
+            o.classList.toggle('active', o.dataset.model === window.__notepadModel);
+        });
+        if (oracleInput) {
+            oracleInput.placeholder = window.__notepadModel === 'intify-2.5.3-flash'
+                ? 'Спросите Intify 2.5.3 Flash…'
+                : 'Ask...';
+        }
+    }
+    document.getElementById('model-chip')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const p = document.getElementById('model-picker');
+        if (p) p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+    });
+    document.querySelectorAll('.model-option').forEach(o => {
+        o.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.__notepadModel = o.dataset.model;
+            localStorage.setItem(MODEL_KEY, window.__notepadModel);
+            refreshModelChip();
+            document.getElementById('model-picker').style.display = 'none';
+            showToast('Модель: ' + (modelLabels[window.__notepadModel] || ''));
+        });
+    });
+    document.addEventListener('click', () => {
+        const p = document.getElementById('model-picker');
+        if (p) p.style.display = 'none';
+    });
+    refreshModelChip();
+
+    // Mode toggle cycles dialog / code / note — updates tip text flavor
+    const modeToggle = document.getElementById('mode-toggle');
+    const modeLabel = document.getElementById('mode-label');
+    const modes = [
+        { id: 'dialog', label: 'Диалог' },
+        { id: 'code', label: 'Код' },
+        { id: 'note', label: 'Заметка' }
+    ];
+    let modeIdx = 0;
+    if (modeToggle) {
+        modeToggle.addEventListener('click', () => {
+            modeIdx = (modeIdx + 1) % modes.length;
+            window.__notepadAiMode = modes[modeIdx].id;
+            if (modeLabel) modeLabel.textContent = modes[modeIdx].label;
+            modeToggle.classList.toggle('agent-active', modes[modeIdx].id !== 'dialog');
+            const tipText = document.getElementById('oracle-smart-tip-text');
+            if (tipText && localStorage.getItem(TIP_KEY) !== '1') {
+                if (modes[modeIdx].id === 'note') {
+                    tipText.textContent = 'Core Node 2.6 стал умнее — хотите добавить заметку о будущих деталях? Просто напишите';
+                } else if (modes[modeIdx].id === 'code') {
+                    tipText.textContent = 'Intify 2.5.3 Flash · режим кода — опишите, что сгенерировать';
+                } else {
+                    tipText.textContent = TIP_VARIANTS[0];
+                }
+                document.getElementById('oracle-smart-tip')?.classList.remove('hidden');
+            }
+        });
+    }
+
+    // AI Studio
+    function loadStudioProjects() {
+        try { return JSON.parse(localStorage.getItem(STUDIO_KEY) || '[]') || []; }
+        catch (e) { return []; }
+    }
+    function saveStudioProjects(list) {
+        localStorage.setItem(STUDIO_KEY, JSON.stringify(list));
+    }
+    function renderAiStudio() {
+        const list = document.getElementById('ai-studio-list');
+        const hint = document.getElementById('studio-empty-hint');
+        if (!list) return;
+        const projects = loadStudioProjects();
+        list.innerHTML = '';
+        if (hint) hint.style.display = projects.length ? 'none' : 'block';
+        projects.forEach((p, i) => {
+            const card = document.createElement('div');
+            card.className = 'studio-card';
+            card.innerHTML = `
+                <div class="studio-card-title">${escapeHtml(p.title || 'AI Project')}</div>
+                <div class="studio-card-meta">${escapeHtml(p.model || 'Intify 2.5.3 Flash')} · ${new Date(p.ts || Date.now()).toLocaleString('ru-RU')}</div>
+                <div class="studio-card-actions">
+                    <button type="button" class="primary" data-act="open" data-i="${i}">В редактор</button>
+                    <button type="button" data-act="chat" data-i="${i}">В чат</button>
+                    <button type="button" data-act="del" data-i="${i}">Удалить</button>
+                </div>`;
+            list.appendChild(card);
+        });
+        list.querySelectorAll('button[data-act]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const i = Number(btn.dataset.i);
+                const act = btn.dataset.act;
+                const projects = loadStudioProjects();
+                const p = projects[i];
+                if (!p) return;
+                if (act === 'del') {
+                    projects.splice(i, 1);
+                    saveStudioProjects(projects);
+                    renderAiStudio();
+                    showToast('Удалено из AI Studio');
+                } else if (act === 'open') {
+                    if (codeEditor) {
+                        codeEditor.value = p.code || '';
+                        handleAutoSaveInput();
+                    }
+                    document.getElementById('aiStudioModal').style.display = 'none';
+                    document.querySelectorAll('.mobile-nav-item').forEach(el => {
+                        el.classList.toggle('active', el.getAttribute('data-target') === 'panel-coding');
+                    });
+                    panels.forEach(panel => {
+                        if (panel) panel.classList.toggle('mobile-active', panel.id === 'panel-coding');
+                    });
+                    showToast('Открыто в кодинге');
+                } else if (act === 'chat') {
+                    if (welcomeBlock) welcomeBlock.classList.add('hidden');
+                    appendBubble(escapeHtml((p.title || '') + '\n' + (p.prompt || '')), 'user');
+                    appendBubble(`<strong>AI Studio</strong><br>Проект «${escapeHtml(p.title || '')}» загружен в контекст.`, 'ai');
+                    document.getElementById('aiStudioModal').style.display = 'none';
+                }
+            });
+        });
+    }
+    function maybeOfferStudioSave(promptText) {
+        // soft: auto-add draft to studio once per session after coding reply
+        if (window.__studioAutoAdded) return;
+        window.__studioAutoAdded = true;
+        const list = loadStudioProjects();
+        list.unshift({
+            id: 'ai_' + Date.now(),
+            title: 'Draft: ' + (promptText || 'code').slice(0, 40),
+            prompt: promptText,
+            code: '// generated draft\nconsole.log("Intify 2.5.3 Flash");\n',
+            model: 'Intify 2.5.3 Flash',
+            ts: Date.now()
+        });
+        saveStudioProjects(list.slice(0, 40));
+    }
+    document.getElementById('btn-open-ai-studio')?.addEventListener('click', () => {
+        renderAiStudio();
+        document.getElementById('aiStudioModal').style.display = 'flex';
+    });
+    document.getElementById('btn-close-ai-studio')?.addEventListener('click', () => {
+        document.getElementById('aiStudioModal').style.display = 'none';
+    });
+    document.getElementById('btn-studio-new')?.addEventListener('click', () => {
+        showInput('Новый AI-проект', 'Название:', 'Intify draft', (name) => {
+            if (!name) return;
+            const list = loadStudioProjects();
+            list.unshift({
+                id: 'ai_' + Date.now(),
+                title: name,
+                prompt: '',
+                code: codeEditor ? codeEditor.value : '',
+                model: modelLabels[window.__notepadModel] || 'Intify 2.5.3 Flash',
+                ts: Date.now()
+            });
+            saveStudioProjects(list);
+            renderAiStudio();
+            showToast('Проект в AI Studio');
+        });
+    });
+
 
     // Live sync when Core Node updates localStorage (same origin)
     window.addEventListener('storage', (e) => {
@@ -1239,3 +1527,292 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 });
+
+
+// ===== Shared pack with Core Node (same localStorage keys) =====
+window.exportNotepadProjectsPack = function() {
+    let projects = [];
+    try { projects = JSON.parse(localStorage.getItem('oracle_projects_list') || '[]') || []; } catch(e) {}
+    const pack = {
+        version: 1,
+        app: 'oracle-notepad',
+        site: 'https://oracle-ai-pro.github.io/oracle-notepad',
+        exportedAt: Date.now(),
+        activeId: localStorage.getItem('oracle_active_project_id'),
+        projects: projects.map(p => {
+            let state = {};
+            try { state = JSON.parse(localStorage.getItem('oracle_notepad_storage_' + p.id) || '{}') || {}; } catch(e) {}
+            return { id: p.id, name: p.name || p.id, updatedAt: p.updatedAt || null, state };
+        }),
+        draft: localStorage.getItem('oracle_notepad_code') || ''
+    };
+    return pack;
+};
+window.downloadNotepadProjectsPack = function() {
+    const pack = window.exportNotepadProjectsPack();
+    const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'oracle-notepad-projects.json';
+    a.click();
+};
+console.info('[Notepad] Shared keys with Core Node: oracle_projects_list, oracle_notepad_storage_*, oracle_active_project_id');
+
+
+/* ===== Notepad: limits reform, JSON helper, right dock, chat menu ===== */
+(function notepadProFeatures() {
+    const TPL = {
+        worldpack: `{
+  "name": "MyWorld",
+  "version": "1.0.0",
+  "rooms": [
+    { "id": "room_1", "name": "Room 1", "objects": [] }
+  ],
+  "meta": { "author": "", "created": "" }
+}`,
+        config: `{
+  "theme": "dark",
+  "autoSave": true,
+  "locale": "ru-RU",
+  "features": {
+    "bridge": true,
+    "aiStudio": true
+  }
+}`,
+        package: `{
+  "name": "my-project",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {}
+}`,
+        tsconfig: `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "strict": true,
+    "moduleResolution": "bundler"
+  },
+  "include": ["src"]
+}`,
+        manifest: `{
+  "manifest_version": 3,
+  "name": "Side Core Node",
+  "version": "1.0.0",
+  "description": "",
+  "action": { "default_title": "Core Node" },
+  "permissions": ["storage", "sidePanel"]
+}`,
+        html: `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  
+</body>
+</html>`
+    };
+
+    function openJsonHelper() {
+        const m = document.getElementById('jsonHelperModal');
+        if (m) m.style.display = 'flex';
+    }
+    function closeJsonHelper() {
+        const m = document.getElementById('jsonHelperModal');
+        if (m) m.style.display = 'none';
+    }
+    document.getElementById('btn-open-json-helper')?.addEventListener('click', openJsonHelper);
+    document.getElementById('btn-close-json-helper')?.addEventListener('click', closeJsonHelper);
+    document.getElementById('jsonHelperModal')?.addEventListener('click', (e) => {
+        if (e.target && e.target.id === 'jsonHelperModal') closeJsonHelper();
+    });
+    document.querySelectorAll('#jsonHelperModal .json-tpl-btn[data-tpl]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.tpl;
+            const ed = document.getElementById('code-editor');
+            if (!ed) return;
+            if (id === 'format') {
+                const raw = ed.value.trim();
+                if (!raw) {
+                    if (typeof showToast === 'function') showToast('Редактор пуст');
+                    return;
+                }
+                try {
+                    const obj = JSON.parse(raw);
+                    ed.value = JSON.stringify(obj, null, 2);
+                    if (typeof handleAutoSaveInput === 'function') handleAutoSaveInput();
+                    if (typeof showToast === 'function') showToast('JSON валиден · отформатирован');
+                } catch (err) {
+                    if (typeof showAlert === 'function') {
+                        showAlert(String(err.message || err), 'Ошибка JSON');
+                    } else if (typeof showToast === 'function') {
+                        showToast('JSON ошибка: ' + (err.message || err));
+                    }
+                }
+                return;
+            }
+            const text = TPL[id];
+            if (!text) return;
+            if (ed.value.trim()) {
+                if (typeof showConfirm === 'function') {
+                    showConfirm('Заменить содержимое редактора шаблоном?', () => {
+                        ed.value = text;
+                        if (typeof handleAutoSaveInput === 'function') handleAutoSaveInput();
+                        closeJsonHelper();
+                        if (typeof showToast === 'function') showToast('Шаблон вставлен');
+                    }, 'Шаблон');
+                    return;
+                }
+            }
+            ed.value = text;
+            if (typeof handleAutoSaveInput === 'function') handleAutoSaveInput();
+            closeJsonHelper();
+            if (typeof showToast === 'function') showToast('Шаблон вставлен');
+        });
+    });
+
+    // Limits reform
+    function maybeShowLimitsReform() {
+        if (localStorage.getItem('oracle_np_limits_reform_nov1') === '1') return;
+        setTimeout(() => {
+            if (localStorage.getItem('oracle_np_limits_reform_nov1') === '1') return;
+            const m = document.getElementById('limits-reform-modal');
+            if (m) m.style.display = 'flex';
+        }, 2800);
+    }
+    document.getElementById('limits-reform-more-btn')?.addEventListener('click', () => {
+        const more = document.getElementById('limits-reform-more');
+        const btn = document.getElementById('limits-reform-more-btn');
+        if (!more) return;
+        if (more.hasAttribute('hidden')) {
+            more.removeAttribute('hidden');
+            if (btn) btn.textContent = 'Скрыть';
+        } else {
+            more.setAttribute('hidden', '');
+            if (btn) btn.textContent = 'Подробнее';
+        }
+    });
+    document.getElementById('limits-reform-accept')?.addEventListener('click', () => {
+        localStorage.setItem('oracle_np_limits_reform_nov1', '1');
+        const m = document.getElementById('limits-reform-modal');
+        if (m) m.style.display = 'none';
+        if (typeof showToast === 'function') showToast('Принято. Новые лимиты — с 1 ноября');
+    });
+    document.addEventListener('DOMContentLoaded', maybeShowLimitsReform);
+    if (document.readyState !== 'loading') maybeShowLimitsReform();
+
+    // Right panel dock
+    const grid = document.querySelector('.grid-layout');
+    const panelRight = document.getElementById('panel-oracle');
+    const btnDockRight = document.getElementById('btn-dock-right');
+    const dockRightIcon = document.getElementById('dock-right-icon');
+    if (btnDockRight && grid && panelRight) {
+        btnDockRight.addEventListener('click', () => {
+            if (window.innerWidth < 1024) return;
+            const on = grid.classList.toggle('right-docked');
+            panelRight.classList.toggle('docked', on);
+            if (dockRightIcon) dockRightIcon.textContent = on ? 'dock_to_left' : 'dock_to_right';
+        });
+    }
+
+    // New Chat in drawer
+    document.getElementById('btn-drawer-new-chat')?.addEventListener('click', () => {
+        const welcome = document.getElementById('welcome-block');
+        const flow = document.getElementById('chat-flow');
+        if (flow) flow.innerHTML = '';
+        if (welcome) welcome.classList.remove('hidden');
+        document.getElementById('chatDrawer')?.classList.remove('active');
+        document.getElementById('chatDrawerOverlay')?.classList.remove('active');
+        setTimeout(() => {
+            const o = document.getElementById('chatDrawerOverlay');
+            if (o) o.style.display = 'none';
+        }, 280);
+        if (typeof showToast === 'function') showToast('Новый чат');
+    });
+
+    // Patch renderCoreChatHistory items with more menu — hook after definition via override
+    const _origRender = window.renderCoreChatHistory;
+})();
+
+// Enhance AI send with thinking animation (patch after DOM ready)
+document.addEventListener('DOMContentLoaded', () => {
+    // chat item context via event delegation
+    let _ctxSessionId = null;
+    const ctxMenu = document.getElementById('chatCtxMenu');
+    document.getElementById('chatHistoryList')?.addEventListener('click', (e) => {
+        const more = e.target.closest('.chat-item-more');
+        if (!more) return;
+        e.stopPropagation();
+        const item = more.closest('.chat-item');
+        if (!item || !item.dataset.sessionId) return;
+        _ctxSessionId = item.dataset.sessionId;
+        if (!ctxMenu) return;
+        const r = more.getBoundingClientRect();
+        ctxMenu.style.left = Math.min(r.left, window.innerWidth - 180) + 'px';
+        ctxMenu.style.top = (r.bottom + 4) + 'px';
+        ctxMenu.classList.add('active');
+    });
+    document.addEventListener('click', () => ctxMenu?.classList.remove('active'));
+    document.getElementById('chat-ctx-rename')?.addEventListener('click', () => {
+        ctxMenu?.classList.remove('active');
+        if (!_ctxSessionId) return;
+        try {
+            const raw = localStorage.getItem('oracle_chat_sessions');
+            const chats = JSON.parse(raw || '{}');
+            const s = chats[_ctxSessionId];
+            if (!s) return;
+            if (typeof showInput === 'function') {
+                showInput('Переименовать чат', 'Название:', s.title || '', (name) => {
+                    if (!name) return;
+                    s.title = name;
+                    localStorage.setItem('oracle_chat_sessions', JSON.stringify(chats));
+                    if (typeof syncFromCoreNode === 'function') syncFromCoreNode(false);
+                    else if (typeof renderCoreChatHistory === 'function') renderCoreChatHistory();
+                    if (typeof showToast === 'function') showToast('Переименовано');
+                });
+            }
+        } catch (e) {}
+    });
+    document.getElementById('chat-ctx-delete')?.addEventListener('click', () => {
+        ctxMenu?.classList.remove('active');
+        if (!_ctxSessionId) return;
+        if (typeof showConfirm !== 'function') return;
+        showConfirm('Удалить этот чат из Core Node history?', () => {
+            try {
+                const chats = JSON.parse(localStorage.getItem('oracle_chat_sessions') || '{}');
+                delete chats[_ctxSessionId];
+                localStorage.setItem('oracle_chat_sessions', JSON.stringify(chats));
+                if (typeof syncFromCoreNode === 'function') syncFromCoreNode(false);
+                if (typeof showToast === 'function') showToast('Чат удалён');
+            } catch (e) {}
+        }, 'Удаление чата');
+    });
+});
+
+// Monkey-patch: add ⋮ to chat items when list is rendered
+(function patchChatListRender() {
+    const tryPatch = () => {
+        const list = document.getElementById('chatHistoryList');
+        if (!list) return;
+        const obs = new MutationObserver(() => {
+            list.querySelectorAll('.chat-item:not(.muted):not([data-ctx])').forEach(item => {
+                if (!item.dataset.sessionId) return;
+                item.dataset.ctx = '1';
+                if (item.querySelector('.chat-item-more')) return;
+                const btn = document.createElement('span');
+                btn.className = 'material-symbols-rounded chat-item-more';
+                btn.textContent = 'more_vert';
+                btn.title = 'Действия';
+                item.appendChild(btn);
+            });
+        });
+        obs.observe(list, { childList: true, subtree: true });
+    };
+    document.addEventListener('DOMContentLoaded', tryPatch);
+    if (document.readyState !== 'loading') tryPatch();
+})();
