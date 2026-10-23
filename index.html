@@ -22,6 +22,10 @@
         </div>
         
         <div class="header-actions">
+            <button class="icon-btn" id="btn-open-limits" title="Лимиты / Data usage">
+                <span class="material-symbols-rounded">data_usage</span>
+                <span class="header-btn-label">Лимиты</span>
+            </button>
             <button class="icon-btn" id="btn-theme-quick" title="Тема">
                 <span class="material-symbols-rounded" id="theme-quick-icon">dark_mode</span>
             </button>
@@ -99,8 +103,9 @@
                     <input type="text" id="meta-name" value="" placeholder="Введите имя...">
                 </div>
 
-                <button class="action-btn" id="btn-import-pack">
-                    <span class="material-symbols-rounded">upload</span> Загрузить пак
+                <input type="file" id="import-pack-input" accept=".json,.worldpack,.txt,.js,.css,.html,.md,application/json,text/plain" style="display:none;">
+                <button type="button" class="action-btn" id="btn-import-pack">
+                    <span class="material-symbols-rounded">upload</span> Загрузить пак / файл
                 </button>
 
                 
@@ -130,9 +135,6 @@
                 <button class="toggle-btn" id="toggle-keyboard">
                     <span class="material-symbols-rounded">keyboard</span> Клавиатура символов
                 </button>
-                <button class="toggle-btn" id="toggle-hints">
-                    <span class="material-symbols-rounded">lightbulb</span> Включить подсказки
-                </button>
             </div>
             
             <div class="custom-keyboard" id="coding-keyboard"></div>
@@ -147,10 +149,6 @@
                 <button class="icon-btn" id="btn-chat-menu" title="Меню чатов Core Node">
                     <span class="material-symbols-rounded">menu</span>
                 </button>
-                
-                <div class="mode-toggle" id="mode-toggle" title="Режим: диалог / код / заметка">
-                    <span id="mode-label">Диалог</span>
-                </div>
 
                 <div class="right-actions">
                     <button class="icon-btn" id="btn-toggle-notes" title="Переключиться на Заметки">
@@ -163,11 +161,13 @@
             <div class="right-view-container active" id="view-ai">
                 <div class="oracle-chat-zone" id="chat-zone">
                     <div id="welcome-block" class="welcome-zone">
-                        <div class="blob-container">
-                            <div class="blob cyan-blob"></div>
-                            <div class="blob purple-blob"></div>
+                        <div class="core-logo-stage" aria-hidden="true">
+                            <div class="core-ring r1"></div>
+                            <div class="core-ring r2"></div>
+                            <div class="core-ring r3"></div>
+                            <div class="core-core"></div>
                         </div>
-                        <div class="oracle-greeting">Hi There!</div>
+                        <div class="oracle-greeting">Здравствуйте! Чем я могу помочь?</div>
                         <div class="oracle-warning">ИИ может давать ошибки.</div>
                     </div>
                     
@@ -182,38 +182,104 @@
                             <span class="material-symbols-rounded">close</span>
                         </button>
                     </div>
-                    <div class="oracle-model-row">
-                        <button type="button" class="model-chip active" id="model-chip" title="Модель ИИ">
-                            <span class="material-symbols-rounded">bolt</span>
-                            <span id="model-chip-label">Intify 2.5.3 Flash</span>
-                            <span class="material-symbols-rounded chev">expand_more</span>
-                        </button>
-                        <button type="button" class="model-chip studio" id="btn-open-ai-studio" title="AI Studio">
+                    <div class="oracle-model-row" id="oracle-active-tags">
+                        <div class="cn-select" id="select-model" data-value="intify-auto">
+                            <button type="button" class="cn-select-btn" id="select-model-btn">
+                                <span class="material-symbols-rounded">auto_awesome</span>
+                                <span class="cn-select-label" id="tag-model">Intify Auto</span>
+                                <span class="material-symbols-rounded chev">expand_more</span>
+                            </button>
+                            <div class="cn-select-menu" id="select-model-menu" hidden>
+                                <button type="button" data-value="intify-auto"><strong>Intify Models (Auto)</strong><small>подбор сам</small></button>
+                                <button type="button" data-value="intify-2.5.3-coding"><strong>Intify 2.5.3 Coding</strong><small>до 30% за кодинг</small></button>
+                                <button type="button" data-value="intify-2.5.3-flash"><strong>Intify 2.5.3 Flash</strong><small>до 50% за кодинг</small></button>
+                            </div>
+                        </div>
+                        <div class="cn-select" id="select-priority" data-value="medium">
+                            <button type="button" class="cn-select-btn" id="select-priority-btn">
+                                <span class="material-symbols-rounded">tune</span>
+                                <span class="cn-select-label" id="tag-priority">Средний</span>
+                                <span class="material-symbols-rounded chev">expand_more</span>
+                            </button>
+                            <div class="cn-select-menu" id="select-priority-menu" hidden>
+                                <button type="button" data-value="low"><strong>Низкий</strong><small>не может кодить</small></button>
+                                <button type="button" data-value="medium"><strong>Средний</strong><small>умеренный</small></button>
+                                <button type="button" data-value="high"><strong>Высокий</strong><small>до 80% / 3 сообщ.</small></button>
+                            </div>
+                        </div>
+                        <span class="tag-chip connector-chip" id="tag-connector" data-kind="connector" style="display:none;">
+                            <span id="tag-connector-label">@plan</span>
+                            <button type="button" class="tag-x" id="tag-connector-x" title="Убрать коннектор" aria-label="Убрать">
+                                <span class="material-symbols-rounded">close</span>
+                            </button>
+                        </span>
+                        <button type="button" class="model-chip studio" id="btn-open-ai-studio" title="AI Studio — витрина AI-проектов">
                             <span class="material-symbols-rounded">dashboard_customize</span>
                             <span>AI Studio</span>
                         </button>
-                        <div id="model-picker" class="model-picker" style="display:none;">
-                            <button type="button" class="model-option active" data-model="intify-2.5.3-flash">
-                                <strong>Intify 2.5.3 Flash</strong>
-                                <span>Coding · быстрые ответы</span>
-                            </button>
-                            <button type="button" class="model-option" data-model="oracle-main">
-                                <strong>Oracle Main</strong>
-                                <span>Универсальный диалог</span>
-                            </button>
-                            <button type="button" class="model-option" data-model="worldpack">
-                                <strong>Worldpack AI</strong>
-                                <span>Миры и комнаты</span>
-                            </button>
-                        </div>
                     </div>
-                    <div class="glass-input-box">
-                        <button type="button" class="icon-btn" id="btn-attach" title="Прикрепить файл">
-                            <span class="material-symbols-rounded">add</span>
-                        </button>
+                    <div id="at-connector-popup" class="at-connector-popup" style="display:none;">
+                        <button type="button" data-conn="plan"><span class="material-symbols-rounded">chat</span> @plan Диалог</button>
+                        <button type="button" data-conn="keep"><span class="material-symbols-rounded">sticky_note_2</span> @keep Заметка</button>
+                        <button type="button" data-conn="code"><span class="material-symbols-rounded">terminal</span> @code Код</button>
+                    </div>
+                    <div class="glass-input-box" id="oracle-input-box">
+                        <div class="plus-wrap">
+                            <button type="button" class="icon-btn" id="btn-attach" title="Меню">
+                                <span class="material-symbols-rounded">add</span>
+                            </button>
+                            <div class="np-plus-menu" id="np-plus-menu" style="display:none;">
+                                <div class="plus-cat">Прикрепить</div>
+                                <button type="button" class="plus-item" data-act="attach-file">
+                                    <span class="material-symbols-rounded">attach_file</span> Прикрепить файл
+                                </button>
+                                <div class="plus-cat">Анализ кода</div>
+                                <button type="button" class="plus-item" data-act="select-code">
+                                    <span class="material-symbols-rounded">content_cut</span> Выделить код и вставить
+                                </button>
+                                <button type="button" class="plus-item" data-act="from-notes">
+                                    <span class="material-symbols-rounded">sticky_note_2</span> Извлечь из Заметок
+                                </button>
+                                <div class="plus-cat">Выбор агента</div>
+                                <button type="button" class="plus-item" data-model="intify-auto">
+                                    <span class="material-symbols-rounded">auto_awesome</span> Intify Models (Auto)
+                                </button>
+                                <button type="button" class="plus-item" data-model="intify-2.5.3-coding">
+                                    <span class="material-symbols-rounded">code</span> Intify 2.5.3 Coding
+                                    <small>до 30% за кодинг</small>
+                                </button>
+                                <button type="button" class="plus-item" data-model="intify-2.5.3-flash">
+                                    <span class="material-symbols-rounded">bolt</span> Intify 2.5.3 Flash
+                                    <small>до 50% за кодинг</small>
+                                </button>
+                                <div class="plus-cat">Приоритет ответов · НОВОЕ</div>
+                                <button type="button" class="plus-item" data-priority="low">
+                                    <span class="material-symbols-rounded">south</span> Низкий
+                                    <small>не может кодить</small>
+                                </button>
+                                <button type="button" class="plus-item" data-priority="medium">
+                                    <span class="material-symbols-rounded">remove</span> Средний
+                                    <small>умеренный</small>
+                                </button>
+                                <button type="button" class="plus-item" data-priority="high">
+                                    <span class="material-symbols-rounded">north</span> Высокий
+                                    <small>до 80% за 3 сообщения</small>
+                                </button>
+                                <div class="plus-cat">Коннектор</div>
+                                <button type="button" class="plus-item" data-conn="plan">
+                                    <span class="material-symbols-rounded">chat</span> @plan Диалог
+                                </button>
+                                <button type="button" class="plus-item" data-conn="keep">
+                                    <span class="material-symbols-rounded">sticky_note_2</span> @keep Заметка
+                                </button>
+                                <button type="button" class="plus-item" data-conn="code">
+                                    <span class="material-symbols-rounded">terminal</span> @code Код
+                                </button>
+                            </div>
+                        </div>
                         <input type="file" id="attach-file-input" style="display: none;" multiple>
 
-                        <textarea id="oracle-input" placeholder="Спросите Intify 2.5.3 Flash…" rows="1"></textarea>
+                        <textarea id="oracle-input" placeholder="Спросить..." rows="1"></textarea>
 
                         <button type="button" class="icon-btn" id="voice-btn" title="Голосовой ввод">
                             <span class="material-symbols-rounded">mic</span>
@@ -250,7 +316,7 @@
         </div>
         <div class="mobile-nav-item" data-target="panel-oracle">
             <span class="material-symbols-rounded">psychology</span>
-            <span>Оракул</span>
+            <span>Core Node</span>
         </div>
     </nav>
 </div>
@@ -303,32 +369,93 @@
 
 <!-- МОДАЛЬНЫЕ ОКНА -->
 
-<!-- Limits reform Nov 1 (Notepad) -->
+<!-- Restart required after toggle rounded -->
+<div class="migration-overlay" id="rounded-restart-modal" style="display:none;">
+    <div class="migration-modal" style="max-width:380px;text-align:center;">
+        <span class="material-symbols-rounded" style="font-size:36px;color:var(--primary);">restart_alt</span>
+        <h3 style="margin:8px 0 0;">Нужен перезапуск</h3>
+        <p style="font-size:13px;line-height:1.5;color:var(--on-surface-variant);margin:8px 0 0;">
+            Чтобы применить скругления окон, перезапустите Oracle Notepad.
+            Настройка уже сохранена.
+        </p>
+        <button type="button" class="action-btn" id="rounded-restart-only-btn" style="width:100%;margin-top:12px;">
+            <span class="material-symbols-rounded">refresh</span> Перезапустить
+        </button>
+    </div>
+</div>
+
+<!-- Rounded panels beta intro -->
+<div class="migration-overlay" id="rounded-panels-modal" style="display:none;">
+    <div class="migration-modal">
+        <div class="whats-new-header">
+            <span class="material-symbols-rounded whats-new-icon">rounded_corner</span>
+            <h3>Новый интерфейс · скругления</h3>
+        </div>
+        <p style="font-size:13px;line-height:1.55;color:var(--on-surface-variant);margin:0;">
+            <b>Oracle Notepad</b> в бета-режиме показывает три окна (Инфо · Кодинг · Core Node)
+            со скруглениями и промежутком между панелями — окна больше не «склеиваются»
+            в одну плиту. Так проще держать фокус: каждая зона читается отдельно,
+            меньше визуального шума при длинном коде и чате рядом.
+        </p>
+        <p style="font-size:13px;line-height:1.55;color:var(--on-surface-variant);margin:0;">
+            Чтобы <b>отключить</b> скругления: Настройки → тумблер
+            «Скругления окон НОВОЕ» → Выкл. Чтобы снова включить — тот же тумблер → Вкл.
+            После смены нужно <b>перезапустить</b> Notepad (обновить страницу), чтобы применить layout.
+        </p>
+        <p style="font-size:12px;color:var(--on-surface-variant);margin:0;opacity:0.85;">
+            Предпочтение уже сохранено в localStorage. Осталось только перезапустить.
+        </p>
+        <div class="modal-actions-row">
+            <button type="button" class="action-btn" id="rounded-panels-restart" style="width:100%;">
+                <span class="material-symbols-rounded">refresh</span> Перезапустить
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Limits usage + reform info -->
 <div class="migration-overlay" id="limits-reform-modal" style="display:none;">
     <div class="migration-modal limits-reform-card">
         <div class="whats-new-header">
-            <span class="material-symbols-rounded whats-new-icon">event</span>
-            <h3>С 1 ноября изменится система лимитов</h3>
+            <span class="material-symbols-rounded whats-new-icon">data_usage</span>
+            <h3>Лимиты использования</h3>
         </div>
         <p style="font-size:13px;line-height:1.55;color:var(--on-surface-variant);margin:0;">
-            Новое соглашение о разделении лимитов. Изменения с <b>1 ноября</b> — <u>не сейчас</u>.
-            В Oracle Notepad нет генерации изображений; учитываются текст, поиск и код.
+            С <b>1 ноября</b> действует разделение квот. В Notepad учитываются текст, поиск и код
+            (без генерации картинок). При <b>100%</b> 5-часовой шкалы кнопка «Отправить» блокируется
+            до сброса. При <b>100%</b> недельной — Core Node недоступен до следующей недели
+            (отсчёт после первого 1% в новом периоде).
         </p>
+        <div class="limit-gauge-block">
+            <div class="limit-gauge-head">
+                <span>Лимиты за 5 часов</span>
+                <span id="limit-5h-pct-label">0%</span>
+            </div>
+            <div class="limit-gauge-track"><div class="limit-gauge-fill" id="limit-5h-fill" style="width:0%"></div></div>
+            <div class="limit-gauge-meta" id="limit-5h-meta">Сброс через —</div>
+        </div>
+        <div class="limit-gauge-block">
+            <div class="limit-gauge-head">
+                <span>Лимиты за 7 дней (168 ч)</span>
+                <span id="limit-7d-pct-label">0%</span>
+            </div>
+            <div class="limit-gauge-track"><div class="limit-gauge-fill week" id="limit-7d-fill" style="width:0%"></div></div>
+            <div class="limit-gauge-meta" id="limit-7d-meta">Сброс через —</div>
+        </div>
         <div class="limits-reform-box">
             <div class="limits-reform-row"><span class="lr-pct">0,5%</span> сообщение ≤ 50 символов</div>
             <div class="limits-reform-row"><span class="lr-pct">1%</span> сообщение 50–150 символов</div>
             <div class="limits-reform-row"><span class="lr-pct">…</span> длиннее — пропорционально</div>
-            <div class="limits-reform-row"><span class="lr-pct">5–10%</span> интернет-поиск (известное / неизвестное)</div>
-            <div class="limits-reform-row"><span class="lr-pct">20–40%</span> код, игры и сложные генерации</div>
+            <div class="limits-reform-row"><span class="lr-pct">5–10%</span> интернет-поиск</div>
+            <div class="limits-reform-row"><span class="lr-pct">20–40%</span> код и сложные генерации</div>
         </div>
         <div id="limits-reform-more" class="limits-reform-more" hidden>
-            После запроса появится <b>шкала приблизительной траты</b>. При <b>100%</b> отправка
-            недоступна до сброса — время будет над полем ввода или в настройках.
-            Поиск: ~10% неизвестное, ~5% известное. Точные ступени уточнят к 1 ноября.
+            Шкалы обновляются после каждого запроса. 5 часов — скользящее окно.
+            7 дней — период стартует с первой траты ≥1% и длится 168 часов.
         </div>
         <div class="modal-actions-row">
             <button type="button" class="action-btn outline" id="limits-reform-more-btn">Подробнее</button>
-            <button type="button" class="action-btn" id="limits-reform-accept">Принять</button>
+            <button type="button" class="action-btn" id="limits-reform-accept">Закрыть</button>
         </div>
     </div>
 </div>
@@ -515,6 +642,38 @@
                     <span class="slider"></span>
                 </label>
             </div>
+            <div class="settings-row">
+                <div>
+                    <div class="settings-label">Код «хакерский» зелёный</div>
+                    <div class="settings-desc">Выкл — светлый код с цветными ключевыми словами</div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="settings-code-theme" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-row">
+                <div>
+                    <div class="settings-label">Скругления окон <span class="new-pill">НОВОЕ</span></div>
+                    <div class="settings-desc">Бета: панели с gap и radius. После смены — F5</div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="settings-rounded-panels" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-block" style="margin-top:8px;">
+                <div class="settings-label">Акцентный цвет</div>
+                <div class="accent-swatches" id="accent-swatches">
+                    <button type="button" class="accent-sw" data-accent="bw" style="--sw:#f0f0f0" title="Ч/Б"></button>
+                    <button type="button" class="accent-sw" data-accent="blue" style="--sw:#adc6ff" title="Синий"></button>
+                    <button type="button" class="accent-sw" data-accent="purple" style="--sw:#e8bbf1" title="Фиолетовый"></button>
+                    <button type="button" class="accent-sw" data-accent="cyan" style="--sw:#7dd3fc" title="Cyan"></button>
+                    <button type="button" class="accent-sw" data-accent="green" style="--sw:#7dd3a8" title="Зелёный"></button>
+                    <button type="button" class="accent-sw" data-accent="orange" style="--sw:#ffb74d" title="Оранжевый"></button>
+                    <button type="button" class="accent-sw" data-accent="rose" style="--sw:#ff8a80" title="Розовый"></button>
+                </div>
+            </div>
             <button class="action-btn outline" id="btn-settings-save" style="width:100%;margin-top:4px;">
                 <span class="material-symbols-rounded">check</span> Сохранить настройки
             </button>
@@ -550,15 +709,29 @@
             <h3><span class="material-symbols-rounded" style="vertical-align:middle;color:var(--primary);">dashboard_customize</span> AI Studio</h3>
             <button type="button" class="icon-btn" id="btn-close-ai-studio"><span class="material-symbols-rounded">close</span></button>
         </div>
-        <p class="studio-sub">Проекты, улучшенные или созданные ИИ (Intify 2.5.3 Flash)</p>
+        <p class="studio-sub">Витрина черновиков: сюда попадают ответы и код из чата Core Node, чтобы не потерять их в истории. Можно открыть в редакторе, вернуть в чат или удалить.</p>
         <div class="studio-toolbar">
             <button type="button" class="action-btn" id="btn-studio-new">
                 <span class="material-symbols-rounded">add</span> Новый AI-проект
             </button>
+            <button type="button" class="action-btn outline" id="btn-studio-from-editor">
+                <span class="material-symbols-rounded">code</span> Из редактора
+            </button>
         </div>
         <div id="ai-studio-list" class="ai-studio-list"></div>
-        <p class="studio-empty-hint" id="studio-empty-hint">Пока пусто — сгенерируйте код в чате или создайте проект вручную.</p>
+        <p class="studio-empty-hint" id="studio-empty-hint">Пока пусто. После кодинг-ответа Intify черновик может появиться здесь, либо нажмите «Новый AI-проект» / «Из редактора».</p>
     </div>
+</div>
+
+<!-- Selection toolbar -->
+<div id="code-sel-bar" class="code-sel-bar" style="display:none;">
+    <button type="button" id="sel-send-core"><span class="material-symbols-rounded">send</span> В Core Node</button>
+    <button type="button" id="sel-save-keeps"><span class="material-symbols-rounded">sticky_note_2</span> Save on Keeps</button>
+    <button type="button" id="sel-cancel" class="ghost"><span class="material-symbols-rounded">close</span></button>
+</div>
+<div id="code-select-mode-banner" class="code-select-mode-banner" style="display:none;">
+    <span>Режим выделения кода — выделите фрагмент в редакторе</span>
+    <button type="button" id="code-select-exit"><span class="material-symbols-rounded">close</span></button>
 </div>
 
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" style="display:none;">
