@@ -842,18 +842,19 @@ document.addEventListener('DOMContentLoaded', () => {
         notesEditor.addEventListener('input', handleAutoSaveInput);
     }
 
-    // ОБРАБОТЧИКИ: ПРИКРЕПЛЕНИЕ ФАЙЛА
-    if (btnAttach && attachFileInput) {
-        btnAttach.addEventListener('click', () => attachFileInput.click());
+    // ОБРАБОТЧИКИ: ПРИКРЕПЛЕНИЕ ФАЙЛА (только input change; + открывает меню)
+    if (attachFileInput) {
         attachFileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
+            const files = Array.from(e.target.files || []);
             if (files.length > 0) {
                 const names = files.map(f => f.name).join(', ');
                 if (oracleInput) {
                     oracleInput.value += ` [Прикреплено: ${names}]`;
                     oracleInput.dispatchEvent(new Event('input'));
                 }
+                if (typeof showToast === 'function') showToast('Файл: ' + names);
             }
+            e.target.value = '';
         });
     }
 
@@ -1276,6 +1277,12 @@ console.log('Intify ready');</pre><span style="font-size:12px;opacity:0.75;">М�
         else if (t === 'true-black') document.body.classList.add('true-black-theme');
         else document.body.classList.add('dark-theme');
         localStorage.setItem(THEME_KEY, t);
+        // re-tint accent after theme class change
+        setTimeout(() => {
+          if (typeof window.npApplyAccentFull === 'function') {
+            try { window.npApplyAccentFull(localStorage.getItem('oracle_np_accent') || 'blue'); } catch (e) {}
+          }
+        }, 30);
         document.querySelectorAll('.theme-opt').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.theme === t);
         });
@@ -1353,9 +1360,7 @@ console.log('Intify ready');</pre><span style="font-size:12px;opacity:0.75;">М�
             o.classList.toggle('active', o.dataset.model === window.__notepadModel);
         });
         if (oracleInput) {
-            oracleInput.placeholder = window.__notepadModel === 'intify-2.5.3-flash'
-                ? 'Спросите Intify 2.5.3 Flash…'
-                : 'Ask...';
+            oracleInput.placeholder = 'Спросить...';
         }
     }
     document.getElementById('model-chip')?.addEventListener('click', (e) => {
@@ -1815,4 +1820,1037 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     document.addEventListener('DOMContentLoaded', tryPatch);
     if (document.readyState !== 'loading') tryPatch();
+})();
+
+
+/* ===== Notepad: rounded panels modal queue, limits gauges, accents ===== */
+(function notepadLimitsAndRounded() {
+  const ROUNDED_KEY = 'oracle_np_rounded_panels';
+  const ROUNDED_SEEN = 'oracle_np_rounded_modal_seen';
+  const ACCENT_KEY = 'oracle_np_accent';
+  const LIMITS_KEY = 'oracle_np_limits_v1';
+  const WINDOW_5H = 5 * 60 * 60 * 1000;
+  const WINDOW_7D = 7 * 24 * 60 * 60 * 1000;
+
+  const ACCENTS = {
+    blue:   { primary: '#adc6ff', container: '#254487', secondary: '#e8bbf1' },
+    purple: { primary: '#e8bbf1', container: '#5a3a6e', secondary: '#adc6ff' },
+    cyan:   { primary: '#7dd3fc', container: '#0e4a6e', secondary: '#adc6ff' },
+    green:  { primary: '#7dd3a8', container: '#1e4d3a', secondary: '#a8e6c3' },
+    orange: { primary: '#ffb74d', container: '#6b3f12', secondary: '#ffcc80' },
+    rose:   { primary: '#ff8a80', container: '#6b2220', secondary: '#ffb4ae' }
+  };
+
+  function isRoundedOn() {
+    const v = localStorage.getItem(ROUNDED_KEY);
+    return v === null || v === '1' || v === 'true';
+  }
+  function applyRoundedClass() {
+    document.body.classList.toggle('np-flat-panels', !isRoundedOn());
+    const t = document.getElementById('settings-rounded-panels');
+    if (t) t.checked = isRoundedOn();
+  }
+
+  function applyAccent(name) {
+    const a = ACCENTS[name] || ACCENTS.blue;
+    localStorage.setItem(ACCENT_KEY, name);
+    const root = document.documentElement;
+    // dark / true-black keep custom; light uses darker primary
+    const isLight = document.body.classList.contains('light-theme');
+    if (isLight) {
+      // map light primary darker for contrast
+      const lightMap = {
+        blue: '#2b56c6', purple: '#7b3f8c', cyan: '#0277a8',
+        green: '#1b7a4a', orange: '#c77700', rose: '#c62828'
+      };
+      root.style.setProperty('--primary', lightMap[name] || '#2b56c6');
+      root.style.setProperty('--primary-container', a.primary + '55');
+      root.style.setProperty('--secondary', a.secondary);
+    } else {
+      root.style.setProperty('--primary', a.primary);
+      root.style.setProperty('--primary-container', a.container);
+      root.style.setProperty('--secondary', a.secondary);
+    }
+    document.querySelectorAll('.accent-sw').forEach(b => {
+      b.classList.toggle('active', b.dataset.accent === name);
+    });
+  }
+
+  function loadLimits() {
+    try { return JSON.parse(localStorage.getItem(LIMITS_KEY) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  function saveLimits(s) {
+    localStorage.setItem(LIMITS_KEY, JSON.stringify(s));
+  }
+  function pruneEvents(events, windowMs, now) {
+    return (events || []).filter(e => now - e.t < windowMs);
+  }
+  function sumPct(events) {
+    return (events || []).reduce((s, e) => s + (Number(e.p) || 0), 0);
+  }
+  function estimateCost(text) {
+    const len = (text || '').trim().length;
+    if (len <= 50) return 0.5;
+    if (len <= 150) return 1;
+    if (len <= 500) return 2;
+    if (len <= 1500) return 5;
+    if (len <= 4000) return 12;
+    return 20;
+  }
+  function getLimitState() {
+    const now = Date.now();
+    let s = loadLimits();
+    s.events5h = pruneEvents(s.events5h, WINDOW_5H, now);
+    // weekly: if period started and expired, reset
+    if (s.weekStart && now - s.weekStart >= WINDOW_7D) {
+      s.events7d = [];
+      s.weekStart = null;
+    }
+    s.events7d = pruneEvents(s.events7d, WINDOW_7D, now);
+    const p5 = Math.min(100, sumPct(s.events5h));
+    const p7 = Math.min(100, sumPct(s.events7d));
+    saveLimits(s);
+    return { s, p5, p7, now };
+  }
+  function formatRemain(ms) {
+    if (ms <= 0) return 'сейчас';
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    if (h >= 24) return Math.floor(h / 24) + ' д ' + (h % 24) + ' ч';
+    if (h > 0) return h + ' ч ' + m + ' мин';
+    return m + ' мин';
+  }
+  function refreshLimitUI() {
+    const { s, p5, p7, now } = getLimitState();
+    const fill5 = document.getElementById('limit-5h-fill');
+    const fill7 = document.getElementById('limit-7d-fill');
+    const lab5 = document.getElementById('limit-5h-pct-label');
+    const lab7 = document.getElementById('limit-7d-pct-label');
+    const meta5 = document.getElementById('limit-5h-meta');
+    const meta7 = document.getElementById('limit-7d-meta');
+    if (fill5) {
+      fill5.style.width = p5 + '%';
+      fill5.classList.toggle('danger', p5 >= 90);
+    }
+    if (fill7) {
+      fill7.style.width = p7 + '%';
+      fill7.classList.toggle('danger', p7 >= 90);
+    }
+    if (lab5) lab5.textContent = Math.round(p5 * 10) / 10 + '%';
+    if (lab7) lab7.textContent = Math.round(p7 * 10) / 10 + '%';
+    if (meta5) {
+      const oldest = (s.events5h || []).sort((a,b)=>a.t-b.t)[0];
+      meta5.textContent = oldest
+        ? ('Сброс части: через ' + formatRemain(WINDOW_5H - (now - oldest.t)))
+        : 'Окно 5 часов свободно';
+    }
+    if (meta7) {
+      if (s.weekStart) {
+        meta7.textContent = 'Неделя до: через ' + formatRemain(WINDOW_7D - (now - s.weekStart));
+      } else {
+        meta7.textContent = 'Недельный период ещё не начат';
+      }
+    }
+    const blocked = p5 >= 100 || p7 >= 100;
+    const send = document.getElementById('send-btn');
+    const input = document.getElementById('oracle-input');
+    if (send) send.classList.toggle('limit-blocked', blocked);
+    if (input) input.classList.toggle('limit-blocked', blocked);
+    let banner = document.getElementById('limit-banner');
+    if (!banner) {
+      const wrap = document.querySelector('.glass-input-box-wrapper');
+      if (wrap) {
+        banner = document.createElement('div');
+        banner.id = 'limit-banner';
+        banner.className = 'limit-banner';
+        wrap.insertBefore(banner, wrap.firstChild);
+      }
+    }
+    if (banner) {
+      if (p7 >= 100) {
+        banner.textContent = 'Недельный лимит 100%. Core Node недоступен до следующего периода.';
+        banner.classList.add('show');
+      } else if (p5 >= 100) {
+        banner.textContent = 'Лимит 5 часов исчерпан. Отправка недоступна до сброса.';
+        banner.classList.add('show');
+      } else {
+        banner.classList.remove('show');
+      }
+    }
+    return { blocked, p5, p7 };
+  }
+  window.npConsumeLimit = function(text, extraPct) {
+    const cost = (typeof extraPct === 'number' ? extraPct : estimateCost(text));
+    const now = Date.now();
+    let s = loadLimits();
+    s.events5h = pruneEvents(s.events5h, WINDOW_5H, now);
+    s.events7d = s.events7d || [];
+    if (!s.weekStart && cost >= 1) s.weekStart = now;
+    if (s.weekStart && now - s.weekStart >= WINDOW_7D) {
+      s.events7d = [];
+      s.weekStart = cost >= 1 ? now : null;
+    }
+    s.events5h.push({ t: now, p: cost });
+    s.events7d.push({ t: now, p: cost });
+    saveLimits(s);
+    return refreshLimitUI();
+  };
+  window.npCanSend = function() {
+    const { p5, p7 } = getLimitState();
+    return p5 < 100 && p7 < 100;
+  };
+
+  // Queue modals: whatsNew → limits reform (first) → rounded
+  function anyModalOpen() {
+    return Array.from(document.querySelectorAll('.migration-overlay')).some(el => {
+      const d = el.style.display;
+      return d && d !== 'none';
+    });
+  }
+  function showRoundedModalIfNeeded() {
+    if (localStorage.getItem(ROUNDED_SEEN) === '1') return;
+    // auto-enable rounded by default and mark preference
+    if (localStorage.getItem(ROUNDED_KEY) === null) {
+      localStorage.setItem(ROUNDED_KEY, '1');
+    }
+    applyRoundedClass();
+    const m = document.getElementById('rounded-panels-modal');
+    if (!m) return;
+    m.style.display = 'flex';
+    localStorage.setItem(ROUNDED_SEEN, '1');
+  }
+  function tryShowRoundedWhenFree() {
+    if (localStorage.getItem(ROUNDED_SEEN) === '1') return;
+    if (anyModalOpen()) {
+      setTimeout(tryShowRoundedWhenFree, 600);
+      return;
+    }
+    showRoundedModalIfNeeded();
+  }
+
+  document.getElementById('rounded-panels-restart')?.addEventListener('click', () => {
+    location.reload();
+  });
+
+  document.getElementById('btn-open-limits')?.addEventListener('click', () => {
+    refreshLimitUI();
+    const m = document.getElementById('limits-reform-modal');
+    if (m) m.style.display = 'flex';
+  });
+  // Accept / close already exists — also refresh gauges when opening reform
+  const _acc = document.getElementById('limits-reform-accept');
+  if (_acc) {
+    _acc.addEventListener('click', () => {
+      localStorage.setItem('oracle_np_limits_reform_nov1', '1');
+    });
+  }
+
+  // Settings toggle rounded — save + offer restart modal
+  document.getElementById('settings-rounded-panels')?.addEventListener('change', (e) => {
+    const on = !!e.target.checked;
+    localStorage.setItem(ROUNDED_KEY, on ? '1' : '0');
+    applyRoundedClass();
+    // show restart-only modal
+    const m = document.getElementById('rounded-panels-modal');
+    if (m) {
+      const p = m.querySelector('p');
+      m.style.display = 'flex';
+    }
+    if (typeof showToast === 'function') {
+      showToast(on ? 'Скругления вкл · нужен F5' : 'Скругления выкл · нужен F5');
+    }
+  });
+
+  document.querySelectorAll('.accent-sw').forEach(btn => {
+    btn.addEventListener('click', () => applyAccent(btn.dataset.accent));
+  });
+
+  // Patch send path
+  function guardSend() {
+    if (!window.npCanSend()) {
+      refreshLimitUI();
+      if (typeof showToast === 'function') showToast('Лимит исчерпан');
+      return false;
+    }
+    return true;
+  }
+  // Wrap existing send if present after load
+  const patchSend = () => {
+    const btn = document.getElementById('send-btn');
+    if (!btn || btn._npLimitPatched) return;
+    btn._npLimitPatched = true;
+    btn.addEventListener('click', function(e) {
+      if (!guardSend()) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    }, true);
+  };
+  // Also consume on successful user messages via MutationObserver on chat flow? Better hook input Enter
+  const input = document.getElementById('oracle-input');
+  if (input && !input._npLimitKey) {
+    input._npLimitKey = true;
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        if (!guardSend()) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    }, true);
+  }
+  // Consume when user bubble appears after send
+  const flow = document.getElementById('chat-flow');
+  if (flow) {
+    const obs = new MutationObserver((muts) => {
+      for (const m of muts) {
+        m.addedNodes.forEach(n => {
+          if (n.nodeType === 1 && n.classList && n.classList.contains('user-bubble')) {
+            const text = n.textContent || '';
+            if (window.__npLastConsumed === text.slice(0, 80)) return;
+            window.__npLastConsumed = text.slice(0, 80);
+            window.npConsumeLimit(text);
+          }
+        });
+      }
+    });
+    obs.observe(flow, { childList: true });
+  }
+
+  function boot() {
+    applyRoundedClass();
+    applyAccent(localStorage.getItem(ACCENT_KEY) || 'blue');
+    refreshLimitUI();
+    setTimeout(tryShowRoundedWhenFree, 3200);
+    setInterval(refreshLimitUI, 30000);
+    patchSend();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+  setTimeout(patchSend, 800);
+
+  /* accent re-apply handled by accentEngine */
+})();
+
+
+
+/* ===== Notepad UX pack: accents, plus menu, Intify-only, selection bar ===== */
+(function notepadUxPack() {
+  const MODEL_KEY = 'oracle_notepad_model';
+  const PRIO_KEY = 'oracle_np_priority';
+  const CONN_KEY = 'oracle_np_connector';
+  const CODE_THEME_KEY = 'oracle_np_code_hacker';
+  const modelLabels = {
+    'intify-auto': 'Intify Auto',
+    'intify-2.5.3-coding': 'Intify 2.5.3 Coding',
+    'intify-2.5.3-flash': 'Intify 2.5.3 Flash'
+  };
+  const prioLabels = { low: 'Низкий', medium: 'Средний', high: 'Высокий' };
+  const connLabels = { plan: '@plan', keep: '@keep', code: '@code' };
+
+  // Migrate old models
+  let model = localStorage.getItem(MODEL_KEY) || 'intify-auto';
+  if (model === 'oracle-main' || model === 'worldpack' || model === 'intify-2.5.3-flash' && false) {}
+  if (model === 'oracle-main' || model === 'worldpack') {
+    model = 'intify-auto';
+    localStorage.setItem(MODEL_KEY, model);
+  }
+  window.__notepadModel = model;
+  window.__notepadPriority = localStorage.getItem(PRIO_KEY) || 'medium';
+  window.__notepadConnector = localStorage.getItem(CONN_KEY) || '';
+
+  function refreshTags() {
+    const tm = document.getElementById('tag-model');
+    const tp = document.getElementById('tag-priority');
+    const tc = document.getElementById('tag-connector');
+    if (tm) tm.textContent = modelLabels[window.__notepadModel] || 'Intify Auto';
+    if (tp) tp.textContent = prioLabels[window.__notepadPriority] || 'Средний';
+    if (tc) {
+      if (window.__notepadConnector) {
+        tc.style.display = '';
+        tc.textContent = connLabels[window.__notepadConnector] || window.__notepadConnector;
+      } else tc.style.display = 'none';
+    }
+    const input = document.getElementById('oracle-input');
+    if (input) input.placeholder = 'Спросить...';
+  }
+
+  // Enhanced accent: also tint bg / buttons
+  const ACCENTS = {
+    bw:     { primary: '#e8e8e8', container: '#2a2a2a', secondary: '#b0b0b0', bgDark: '#050505', bgLight: '#f5f5f5' },
+    blue:   { primary: '#adc6ff', container: '#254487', secondary: '#e8bbf1', bgDark: '#05070f', bgLight: '#f0f3ff' },
+    purple: { primary: '#e8bbf1', container: '#5a3a6e', secondary: '#adc6ff', bgDark: '#0a0610', bgLight: '#faf0ff' },
+    cyan:   { primary: '#7dd3fc', container: '#0e4a6e', secondary: '#adc6ff', bgDark: '#041016', bgLight: '#eef9ff' },
+    green:  { primary: '#7dd3a8', container: '#1e4d3a', secondary: '#a8e6c3', bgDark: '#050f0a', bgLight: '#eefaf3' },
+    orange: { primary: '#ffb74d', container: '#6b3f12', secondary: '#ffcc80', bgDark: '#120c05', bgLight: '#fff6eb' },
+    rose:   { primary: '#ff8a80', container: '#6b2220', secondary: '#ffb4ae', bgDark: '#120608', bgLight: '#fff0f0' }
+  };
+  /* UX pack accent stub — real engine is accentEngine below */
+  // handlers via event delegation in accentEngine
+
+  // Rounded: DIFFERENT restart-only modal
+  const roundedToggle = document.getElementById('settings-rounded-panels');
+  if (roundedToggle && !roundedToggle.dataset.wired) {
+    roundedToggle.dataset.wired = '1';
+    roundedToggle.addEventListener('change', (e) => {
+      const on = !!e.target.checked;
+      localStorage.setItem('oracle_np_rounded_panels', on ? '1' : '0');
+      document.body.classList.toggle('np-flat-panels', !on);
+      const m = document.getElementById('rounded-restart-modal');
+      if (m) m.style.display = 'flex';
+    });
+  }
+  document.getElementById('rounded-restart-only-btn')?.addEventListener('click', () => location.reload());
+  // also wire old restart btn if present
+  document.getElementById('rounded-panels-restart')?.addEventListener('click', () => location.reload());
+
+  // Plus menu
+  const plusMenu = document.getElementById('np-plus-menu');
+  const btnAttach = document.getElementById('btn-attach');
+  function closePlus() { if (plusMenu) plusMenu.style.display = 'none'; }
+  if (btnAttach) {
+    btnAttach.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!plusMenu) return;
+      plusMenu.style.display = plusMenu.style.display === 'none' ? 'flex' : 'none';
+    });
+  }
+  document.addEventListener('click', (e) => {
+    if (!plusMenu) return;
+    if (!e.target.closest('.plus-wrap')) closePlus();
+  });
+  plusMenu?.addEventListener('click', (e) => {
+    const item = e.target.closest('.plus-item');
+    if (!item) return;
+    e.stopPropagation();
+    if (item.dataset.act === 'attach-file') {
+      document.getElementById('attach-file-input')?.click();
+    } else if (item.dataset.act === 'select-code') {
+      enterSelectCodeMode();
+    } else if (item.dataset.act === 'from-notes') {
+      const notes = document.getElementById('notes-editor');
+      const text = (notes && notes.innerText) ? notes.innerText.trim() : '';
+      const input = document.getElementById('oracle-input');
+      if (!text) {
+        if (typeof showToast === 'function') showToast('Заметки пусты');
+      } else if (input) {
+        input.value = (input.value ? input.value + '\n' : '') + text.slice(0, 8000);
+        input.dispatchEvent(new Event('input'));
+        if (typeof showToast === 'function') showToast('Текст из Заметок');
+      }
+    } else if (item.dataset.model) {
+      window.__notepadModel = item.dataset.model;
+      localStorage.setItem(MODEL_KEY, window.__notepadModel);
+      refreshTags();
+      if (typeof showToast === 'function') showToast('Модель: ' + (modelLabels[window.__notepadModel] || ''));
+    } else if (item.dataset.priority) {
+      window.__notepadPriority = item.dataset.priority;
+      localStorage.setItem(PRIO_KEY, window.__notepadPriority);
+      refreshTags();
+      if (typeof showToast === 'function') showToast('Приоритет: ' + prioLabels[window.__notepadPriority]);
+    } else if (item.dataset.conn) {
+      window.__notepadConnector = item.dataset.conn;
+      localStorage.setItem(CONN_KEY, window.__notepadConnector);
+      // sync mode toggle if present
+      const modeLabel = document.getElementById('mode-label');
+      if (modeLabel) {
+        modeLabel.textContent = item.dataset.conn === 'code' ? 'Код' : item.dataset.conn === 'keep' ? 'Заметка' : 'Диалог';
+      }
+      refreshTags();
+    }
+    closePlus();
+  });
+
+  // Empty chat center
+  function syncChatEmpty() {
+    const view = document.getElementById('view-ai');
+    const flow = document.getElementById('chat-flow');
+    if (!view) return;
+    const hasMsg = flow && flow.querySelector('.chat-bubble');
+    view.classList.toggle('chat-empty', !hasMsg);
+  }
+  const flowEl = document.getElementById('chat-flow');
+  if (flowEl) {
+    new MutationObserver(syncChatEmpty).observe(flowEl, { childList: true });
+  }
+  syncChatEmpty();
+
+  // Code theme
+  function applyCodeTheme() {
+    const hacker = localStorage.getItem(CODE_THEME_KEY);
+    const on = hacker === null || hacker === '1';
+    document.body.classList.toggle('code-theme-hacker', on);
+    document.body.classList.toggle('code-theme-plain', !on);
+    const t = document.getElementById('settings-code-theme');
+    if (t && t.checked !== on) t.checked = on;
+  }
+  document.getElementById('settings-code-theme')?.addEventListener('change', (e) => {
+    localStorage.setItem(CODE_THEME_KEY, e.target.checked ? '1' : '0');
+    applyCodeTheme();
+  });
+  applyCodeTheme();
+
+  // Selection toolbar
+  let selectMode = false;
+  let lastSel = '';
+  function enterSelectCodeMode() {
+    selectMode = true;
+    document.body.classList.add('select-code-mode');
+    const ban = document.getElementById('code-select-mode-banner');
+    if (ban) ban.style.display = 'flex';
+    // switch to coding panel on mobile
+    document.querySelectorAll('.mobile-nav-item').forEach(el => {
+      el.classList.toggle('active', el.getAttribute('data-target') === 'panel-coding');
+    });
+    document.querySelectorAll('#panel-info,#panel-coding,#panel-oracle').forEach(p => {
+      if (p) p.classList.toggle('mobile-active', p.id === 'panel-coding');
+    });
+    if (typeof showToast === 'function') showToast('Выделите код в редакторе');
+  }
+  function exitSelectCodeMode() {
+    selectMode = false;
+    document.body.classList.remove('select-code-mode');
+    const ban = document.getElementById('code-select-mode-banner');
+    if (ban) ban.style.display = 'none';
+    hideSelBar();
+  }
+  document.getElementById('code-select-exit')?.addEventListener('click', exitSelectCodeMode);
+
+  const selBar = document.getElementById('code-sel-bar');
+  function hideSelBar() { if (selBar) selBar.style.display = 'none'; }
+  function showSelBar(x, y) {
+    if (!selBar) return;
+    selBar.style.display = 'flex';
+    const left = Math.min(Math.max(8, x), window.innerWidth - 280);
+    const top = Math.min(Math.max(8, y), window.innerHeight - 60);
+    selBar.style.left = left + 'px';
+    selBar.style.top = top + 'px';
+  }
+  function onSelectionChange(ev) {
+    const ed = document.getElementById('code-editor');
+    // ONLY coding area
+    if (!ed) { hideSelBar(); return; }
+    const activeOk = document.activeElement === ed || (ev && ed.contains && ed.contains(ev.target));
+    if (!activeOk && !selectMode) {
+      // ignore selections outside coding panel
+      if (ev && ev.target && !ed.contains(ev.target) && ev.target !== ed) {
+        hideSelBar();
+        return;
+      }
+    }
+    if (document.activeElement !== ed && !selectMode) {
+      hideSelBar();
+      return;
+    }
+    const taText = ed.value.substring(ed.selectionStart || 0, ed.selectionEnd || 0).trim();
+    if (taText.length < 2) {
+      hideSelBar();
+      return;
+    }
+    lastSel = taText;
+    const rect = ed.getBoundingClientRect();
+    // approximate caret position near selection end
+    const x = Math.min(rect.left + 40, window.innerWidth - 280);
+    const y = Math.min(rect.top + 40, window.innerHeight - 70);
+    showSelBar(x, y);
+  }
+  const codeEd = document.getElementById('code-editor');
+  if (codeEd) {
+    codeEd.addEventListener('mouseup', onSelectionChange);
+    codeEd.addEventListener('keyup', onSelectionChange);
+    codeEd.addEventListener('select', onSelectionChange);
+  }
+  // Do NOT bind document-level selection for sel bar
+
+  document.getElementById('sel-send-core')?.addEventListener('click', () => {
+    const input = document.getElementById('oracle-input');
+    if (!lastSel || !input) return;
+    input.value = (input.value ? input.value + '\n\n' : '') + '```\n' + lastSel + '\n```';
+    input.dispatchEvent(new Event('input'));
+    exitSelectCodeMode();
+    // open Core Node panel
+    document.querySelectorAll('.mobile-nav-item').forEach(el => {
+      el.classList.toggle('active', el.getAttribute('data-target') === 'panel-oracle');
+    });
+    document.querySelectorAll('#panel-info,#panel-coding,#panel-oracle').forEach(p => {
+      if (p) p.classList.toggle('mobile-active', p.id === 'panel-oracle');
+    });
+    if (typeof showToast === 'function') showToast('Отрезок в поле Core Node');
+  });
+  document.getElementById('sel-save-keeps')?.addEventListener('click', () => {
+    const notes = document.getElementById('notes-editor');
+    if (!lastSel || !notes) return;
+    notes.innerHTML = (notes.innerHTML ? notes.innerHTML + '<br><br>' : '') +
+      '<pre>' + lastSel.replace(/</g,'&lt;') + '</pre>';
+    exitSelectCodeMode();
+    if (typeof showToast === 'function') showToast('Сохранено в Keeps');
+  });
+  document.getElementById('sel-cancel')?.addEventListener('click', () => {
+    hideSelBar();
+    exitSelectCodeMode();
+  });
+
+  // Limit cost by model/priority for coding
+  const _oldConsume = window.npConsumeLimit;
+  window.npConsumeLimit = function(text, extraPct) {
+    let cost = typeof extraPct === 'number' ? extraPct : null;
+    if (cost == null) {
+      const len = (text || '').length;
+      cost = len <= 50 ? 0.5 : len <= 150 ? 1 : len <= 500 ? 2 : 5;
+      const isCode = window.__notepadConnector === 'code' || window.__notepadModel === 'intify-2.5.3-coding' || /```/.test(text || '');
+      if (isCode) {
+        if (window.__notepadModel === 'intify-2.5.3-coding') cost = Math.max(cost, 30);
+        else if (window.__notepadModel === 'intify-2.5.3-flash') cost = Math.max(cost, Math.min(50, cost * 8));
+        else cost = Math.max(cost, 20);
+      }
+      if (window.__notepadPriority === 'high') cost = Math.min(80, cost * 1.5);
+      if (window.__notepadPriority === 'low') cost = Math.min(cost, 5);
+    }
+    if (typeof _oldConsume === 'function') return _oldConsume(text, cost);
+  };
+
+  // boot accents
+  function boot() {
+    refreshTags();
+    syncChatEmpty();
+    const chip = document.getElementById('model-chip');
+    if (chip) chip.style.display = 'none';
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+(function fixPlusMenuHard() {
+  const btn = document.getElementById('btn-attach');
+  const menu = document.getElementById('np-plus-menu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    const open = menu.style.display === 'flex';
+    menu.style.display = open ? 'none' : 'flex';
+  }, true);
+})();
+
+(function studioPolish() {
+  document.getElementById('btn-studio-from-editor')?.addEventListener('click', () => {
+    const ed = document.getElementById('code-editor');
+    const code = ed ? ed.value : '';
+    if (!code.trim()) {
+      if (typeof showToast === 'function') showToast('Редактор пуст');
+      return;
+    }
+    const name = 'Editor ' + new Date().toLocaleString('ru-RU');
+    try {
+      const list = JSON.parse(localStorage.getItem('oracle_notepad_ai_studio') || '[]') || [];
+      list.unshift({
+        id: 'ai_' + Date.now(),
+        title: name,
+        prompt: '',
+        code: code,
+        model: 'Intify',
+        ts: Date.now()
+      });
+      localStorage.setItem('oracle_notepad_ai_studio', JSON.stringify(list.slice(0, 40)));
+      if (typeof showToast === 'function') showToast('Сохранено в AI Studio');
+      document.getElementById('btn-open-ai-studio')?.click();
+    } catch (e) {}
+  });
+})();
+
+
+/* ===== Accent colors that actually work (dark + light + BW) ===== */
+(function accentEngine() {
+  const KEY = 'oracle_np_accent';
+  const PALETTE = {
+    bw: {
+      dark:  { primary: '#f0f0f0', container: '#ffffff', secondary: '#c8c8c8', bg: '#050505', surface: '#121212', on: '#ffffff', btnText: '#111111' },
+      light: { primary: '#4a4a4a', container: '#6a6a6a', secondary: '#888888', bg: '#fafafa', surface: '#ffffff', on: '#1a1a1a', btnText: '#ffffff' },
+      tb:    { primary: '#ffffff', container: '#ffffff', secondary: '#d0d0d0', bg: '#000000', surface: '#0a0a0a', on: '#ffffff', btnText: '#111111' }
+    },
+    blue: {
+      dark:  { primary: '#adc6ff', container: '#254487', secondary: '#e8bbf1', bg: '#05070f', surface: '#14151f', on: '#e3e2e6', btnText: '#ffffff' },
+      light: { primary: '#8eb4ff', container: '#b6ceff', secondary: '#e0b8f0', bg: '#f7f9ff', surface: '#ffffff', on: '#1a1b26', btnText: '#1a2744' },
+      tb:    { primary: '#adc6ff', container: '#1a2744', secondary: '#e8bbf1', bg: '#000000', surface: '#0a0a0a', on: '#ffffff', btnText: '#ffffff' }
+    },
+    purple: {
+      dark:  { primary: '#e8bbf1', container: '#5a3a6e', secondary: '#adc6ff', bg: '#0a0610', surface: '#16121c', on: '#f0e6f5', btnText: '#ffffff' },
+      light: { primary: '#d4a0e0', container: '#e8c8f0', secondary: '#b6ceff', bg: '#fdf8ff', surface: '#ffffff', on: '#1a1b26', btnText: '#4a2a58' },
+      tb:    { primary: '#e8bbf1', container: '#3a2048', secondary: '#adc6ff', bg: '#000000', surface: '#0a0a0a', on: '#ffffff', btnText: '#ffffff' }
+    },
+    cyan: {
+      dark:  { primary: '#7dd3fc', container: '#0e4a6e', secondary: '#adc6ff', bg: '#041016', surface: '#0f1820', on: '#e6f4fa', btnText: '#ffffff' },
+      light: { primary: '#7dd3fc', container: '#b3e7fd', secondary: '#8eb4ff', bg: '#f5fcff', surface: '#ffffff', on: '#1a1b26', btnText: '#0a3a50' },
+      tb:    { primary: '#7dd3fc', container: '#0a3048', secondary: '#adc6ff', bg: '#000000', surface: '#0a0a0a', on: '#ffffff', btnText: '#ffffff' }
+    },
+    green: {
+      dark:  { primary: '#7dd3a8', container: '#1e4d3a', secondary: '#a8e6c3', bg: '#050f0a', surface: '#101a14', on: '#e6f5ec', btnText: '#ffffff' },
+      light: { primary: '#7dd3a8', container: '#b3e8cc', secondary: '#8eb4ff', bg: '#f5fcf8', surface: '#ffffff', on: '#1a1b26', btnText: '#145038' },
+      tb:    { primary: '#7dd3a8', container: '#143828', secondary: '#a8e6c3', bg: '#000000', surface: '#0a0a0a', on: '#ffffff', btnText: '#ffffff' }
+    },
+    orange: {
+      dark:  { primary: '#ffb74d', container: '#6b3f12', secondary: '#ffcc80', bg: '#120c05', surface: '#1c1610', on: '#fff3e0', btnText: '#ffffff' },
+      light: { primary: '#ffb74d', container: '#ffd399', secondary: '#ffcc80', bg: '#fffaf3', surface: '#ffffff', on: '#1a1b26', btnText: '#5a3a10' },
+      tb:    { primary: '#ffb74d', container: '#4a2e0c', secondary: '#ffcc80', bg: '#000000', surface: '#0a0a0a', on: '#ffffff', btnText: '#ffffff' }
+    },
+    rose: {
+      dark:  { primary: '#ff8a80', container: '#6b2220', secondary: '#ffb4ae', bg: '#120608', surface: '#1c1012', on: '#ffe8e6', btnText: '#ffffff' },
+      light: { primary: '#ff8a80', container: '#ffb3ac', secondary: '#ffb4ae', bg: '#fff7f6', surface: '#ffffff', on: '#1a1b26', btnText: '#5a2020' },
+      tb:    { primary: '#ff8a80', container: '#4a1816', secondary: '#ffb4ae', bg: '#000000', surface: '#0a0a0a', on: '#ffffff', btnText: '#ffffff' }
+    }
+  };
+
+  function modeKey() {
+    if (document.body.classList.contains('light-theme')) return 'light';
+    if (document.body.classList.contains('true-black-theme')) return 'tb';
+    return 'dark';
+  }
+
+  window.npApplyAccentFull = function(name) {
+    if (!PALETTE[name]) name = 'blue';
+    localStorage.setItem(KEY, name);
+    const mode = modeKey();
+    const p = PALETTE[name][mode];
+    const root = document.documentElement;
+    const body = document.body;
+
+    // set on both html and body so theme CSS cannot fully hide them
+    [root, body].forEach(el => {
+      el.style.setProperty('--primary', p.primary, 'important');
+      el.style.setProperty('--primary-container', p.container, 'important');
+      el.style.setProperty('--secondary', p.secondary, 'important');
+      el.style.setProperty('--bg', p.bg, 'important');
+      el.style.setProperty('--surface', p.surface, 'important');
+      el.style.setProperty('--on-surface', p.on, 'important');
+      el.style.setProperty('--btn-on-primary', p.btnText, 'important');
+    });
+
+    if (!body.classList.contains('accent-tinted')) body.classList.add('accent-tinted');
+    if (name === 'bw') {
+      if (!body.classList.contains('accent-bw')) body.classList.add('accent-bw');
+    } else if (body.classList.contains('accent-bw')) {
+      body.classList.remove('accent-bw');
+    }
+    if (body.dataset.accent !== name) body.dataset.accent = name;
+
+    document.querySelectorAll('.accent-sw').forEach(b => {
+      b.classList.toggle('active', b.dataset.accent === name);
+    });
+  };
+
+  // single delegated click for swatches (works even if nodes re-rendered)
+  document.addEventListener('click', (e) => {
+    const sw = e.target.closest && e.target.closest('.accent-sw');
+    if (!sw) return;
+    e.preventDefault();
+    window.npApplyAccentFull(sw.dataset.accent || 'blue');
+    if (typeof showToast === 'function') {
+      const labels = { bw: 'Ч/Б', blue: 'Синий', purple: 'Фиолетовый', cyan: 'Cyan', green: 'Зелёный', orange: 'Оранжевый', rose: 'Розовый' };
+      showToast('Акцент: ' + (labels[sw.dataset.accent] || sw.dataset.accent));
+    }
+  });
+
+  let _applying = false;
+  let _lastSig = '';
+
+  const _origApply = window.npApplyAccentFull;
+  window.npApplyAccentFull = function(name) {
+    if (_applying) return;
+    if (!PALETTE[name]) name = 'blue';
+    const mode = modeKey();
+    const sig = name + '|' + mode;
+    if (sig === _lastSig) return;
+    _applying = true;
+    try {
+      _origApply(name);
+      _lastSig = sig;
+    } finally {
+      // release after style settles
+      setTimeout(() => { _applying = false; }, 0);
+    }
+  };
+
+  function bootAccent() {
+    _lastSig = ''; // force once
+    window.npApplyAccentFull(localStorage.getItem(KEY) || 'blue');
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootAccent);
+  else bootAccent();
+
+  // re-apply ONLY on theme class changes, not accent-tinted toggles
+  let _themeWatch = modeKey();
+  const mo = new MutationObserver(() => {
+    if (_applying) return;
+    const t = modeKey();
+    if (t === _themeWatch) return;
+    _themeWatch = t;
+    _lastSig = '';
+    window.npApplyAccentFull(localStorage.getItem(KEY) || 'blue');
+  });
+  mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+})();
+
+/* ===== Import pack / file — clickable ===== */
+(function importPackWire() {
+  function doImport(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || '');
+      const name = file.name || 'import';
+      const lower = name.toLowerCase();
+      try {
+        if (lower.endsWith('.json') || lower.endsWith('.worldpack')) {
+          const data = JSON.parse(text);
+          // project pack from Notepad export
+          if (data && data.projects && Array.isArray(data.projects)) {
+            let projects = [];
+            try { projects = JSON.parse(localStorage.getItem('oracle_projects_list') || '[]') || []; } catch(e) {}
+            data.projects.forEach(p => {
+              const id = p.id || ('imp_' + Date.now() + Math.random().toString(36).slice(2,6));
+              if (!projects.find(x => x.id === id)) projects.push({ id, name: p.name || id });
+              if (p.state) localStorage.setItem('oracle_notepad_storage_' + id, JSON.stringify(p.state));
+            });
+            localStorage.setItem('oracle_projects_list', JSON.stringify(projects));
+            if (typeof showToast === 'function') showToast('Пак проектов загружен');
+            if (typeof renderProjectsList === 'function') renderProjectsList();
+            return;
+          }
+          // single project state
+          if (data && (data.code != null || data.notes != null || data.worlds)) {
+            const ed = document.getElementById('code-editor');
+            if (ed && data.code != null) ed.value = data.code;
+            if (data.notes && document.getElementById('notes-editor')) {
+              document.getElementById('notes-editor').innerHTML = data.notes;
+            }
+            if (typeof handleAutoSaveInput === 'function') handleAutoSaveInput();
+            if (typeof showToast === 'function') showToast('Состояние из JSON');
+            return;
+          }
+          // generic JSON → editor
+          const ed = document.getElementById('code-editor');
+          if (ed) {
+            ed.value = JSON.stringify(data, null, 2);
+            if (typeof handleAutoSaveInput === 'function') handleAutoSaveInput();
+            if (typeof showToast === 'function') showToast('JSON в редактор: ' + name);
+          }
+          return;
+        }
+        // plain text / code files
+        const ed = document.getElementById('code-editor');
+        if (ed) {
+          ed.value = text;
+          if (typeof handleAutoSaveInput === 'function') handleAutoSaveInput();
+          if (typeof showToast === 'function') showToast('Файл: ' + name);
+          // mobile → coding tab
+          document.querySelectorAll('.mobile-nav-item').forEach(el => {
+            el.classList.toggle('active', el.getAttribute('data-target') === 'panel-coding');
+          });
+          document.querySelectorAll('#panel-info,#panel-coding,#panel-oracle').forEach(p => {
+            if (p) p.classList.toggle('mobile-active', p.id === 'panel-coding');
+          });
+        }
+      } catch (err) {
+        // not JSON — still dump text
+        const ed = document.getElementById('code-editor');
+        if (ed) {
+          ed.value = text;
+          if (typeof handleAutoSaveInput === 'function') handleAutoSaveInput();
+          if (typeof showToast === 'function') showToast('Файл: ' + name);
+        } else if (typeof showAlert === 'function') {
+          showAlert(String(err.message || err), 'Ошибка импорта');
+        }
+      }
+    };
+    reader.onerror = () => {
+      if (typeof showAlert === 'function') showAlert('Не удалось прочитать файл');
+    };
+    reader.readAsText(file);
+  }
+
+  function wire() {
+    const btn = document.getElementById('btn-import-pack');
+    let input = document.getElementById('import-pack-input');
+    if (!input) {
+      input = document.createElement('input');
+      input.type = 'file';
+      input.id = 'import-pack-input';
+      input.accept = '.json,.worldpack,.txt,.js,.css,.html,.md,application/json,text/plain';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+    }
+    if (btn && !btn._importWired) {
+      btn._importWired = true;
+      btn.type = 'button';
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        input.click();
+      });
+    }
+    if (input && !input._importWired) {
+      input._importWired = true;
+      input.addEventListener('change', () => {
+        const f = input.files && input.files[0];
+        if (f) doImport(f);
+        input.value = '';
+      });
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+  else wire();
+  setTimeout(wire, 300);
+})();
+
+
+/* ===== Custom selects, @ connector, remove mode toggle ===== */
+(function notepadSelectsAndAt() {
+  const MODEL_KEY = 'oracle_notepad_model';
+  const PRIO_KEY = 'oracle_np_priority';
+  const CONN_KEY = 'oracle_np_connector';
+  const modelLabels = {
+    'intify-auto': 'Intify Auto',
+    'intify-2.5.3-coding': 'Intify Coding',
+    'intify-2.5.3-flash': 'Intify Flash'
+  };
+  const prioLabels = { low: 'Низкий', medium: 'Средний', high: 'Высокий' };
+  const connLabels = { plan: '@plan', keep: '@keep', code: '@code' };
+
+  window.__notepadModel = localStorage.getItem(MODEL_KEY) || 'intify-auto';
+  if (window.__notepadModel === 'oracle-main' || window.__notepadModel === 'worldpack') {
+    window.__notepadModel = 'intify-auto';
+  }
+  window.__notepadPriority = localStorage.getItem(PRIO_KEY) || 'medium';
+  window.__notepadConnector = localStorage.getItem(CONN_KEY) || '';
+
+  function syncUI() {
+    const tm = document.getElementById('tag-model');
+    const tp = document.getElementById('tag-priority');
+    const sm = document.getElementById('select-model');
+    const sp = document.getElementById('select-priority');
+    if (tm) tm.textContent = modelLabels[window.__notepadModel] || 'Intify Auto';
+    if (tp) tp.textContent = prioLabels[window.__notepadPriority] || 'Средний';
+    if (sm) sm.dataset.value = window.__notepadModel;
+    if (sp) sp.dataset.value = window.__notepadPriority;
+    const chip = document.getElementById('tag-connector');
+    const lab = document.getElementById('tag-connector-label');
+    if (chip && lab) {
+      if (window.__notepadConnector) {
+        chip.style.display = 'inline-flex';
+        lab.textContent = connLabels[window.__notepadConnector] || ('@' + window.__notepadConnector);
+      } else {
+        chip.style.display = 'none';
+      }
+    }
+  }
+
+  function closeAllMenus() {
+    document.querySelectorAll('.cn-select-menu').forEach(m => m.hidden = true);
+  }
+
+  function wireSelect(rootId, menuId, onPick) {
+    const root = document.getElementById(rootId);
+    const menu = document.getElementById(menuId);
+    const btn = root && root.querySelector('.cn-select-btn');
+    if (!root || !menu || !btn || btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const wasOpen = !menu.hidden;
+      closeAllMenus();
+      if (!wasOpen) menu.hidden = false;
+    });
+    menu.querySelectorAll('button[data-value]').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onPick(b.dataset.value);
+        menu.hidden = true;
+        syncUI();
+      });
+    });
+  }
+
+  wireSelect('select-model', 'select-model-menu', (v) => {
+    window.__notepadModel = v;
+    localStorage.setItem(MODEL_KEY, v);
+    if (typeof showToast === 'function') showToast('Агент: ' + (modelLabels[v] || v));
+  });
+  wireSelect('select-priority', 'select-priority-menu', (v) => {
+    window.__notepadPriority = v;
+    localStorage.setItem(PRIO_KEY, v);
+    if (typeof showToast === 'function') showToast('Приоритет: ' + (prioLabels[v] || v));
+  });
+
+  document.addEventListener('click', () => closeAllMenus());
+
+  // Connector X
+  document.getElementById('tag-connector-x')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    window.__notepadConnector = '';
+    localStorage.setItem(CONN_KEY, '');
+    syncUI();
+    if (typeof showToast === 'function') showToast('Коннектор снят');
+  });
+
+  // @ popup on input
+  const input = document.getElementById('oracle-input');
+  const popup = document.getElementById('at-connector-popup');
+  function hideAt() { if (popup) popup.style.display = 'none'; }
+  function showAt() { if (popup) popup.style.display = 'flex'; }
+
+  if (input) {
+    input.addEventListener('input', () => {
+      const v = input.value;
+      const caret = input.selectionStart || v.length;
+      const before = v.slice(0, caret);
+      // show when last token is lone @
+      if (/(^|[\s])@$/.test(before)) showAt();
+      else hideAt();
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') hideAt();
+    });
+  }
+  popup?.querySelectorAll('button[data-conn]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const c = btn.dataset.conn;
+      window.__notepadConnector = c;
+      localStorage.setItem(CONN_KEY, c);
+      // strip trailing @
+      if (input) {
+        const caret = input.selectionStart || input.value.length;
+        const before = input.value.slice(0, caret).replace(/@$/, '');
+        const after = input.value.slice(caret);
+        input.value = before + after;
+        input.focus();
+        const pos = before.length;
+        input.setSelectionRange(pos, pos);
+        input.dispatchEvent(new Event('input'));
+      }
+      hideAt();
+      syncUI();
+      if (typeof showToast === 'function') showToast('Коннектор ' + (connLabels[c] || c));
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#at-connector-popup') && !e.target.closest('#oracle-input')) hideAt();
+  });
+
+  // Hide mode toggle if residual
+  const mt = document.getElementById('mode-toggle');
+  if (mt) mt.style.display = 'none';
+
+  function boot() { syncUI(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+(function killHints() {
+  const h = document.getElementById('toggle-hints');
+  if (h) h.remove();
+  const mt = document.getElementById('mode-toggle');
+  if (mt) mt.remove();
 })();
